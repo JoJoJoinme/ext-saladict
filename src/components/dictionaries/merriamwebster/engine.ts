@@ -104,7 +104,9 @@ export function _getSynonyms(
   if (!lists) return undefined
 
   const words = [...lists].map(l =>
-    [...l.querySelectorAll('a[lang]').values()].map(v => v.textContent)
+    [...l.querySelectorAll('a[lang]').values()].map(v =>
+      v.textContent ? v.textContent.trim() : ''
+    )
   )
 
   if (functions.length === 0 || words.length === 0) return undefined
