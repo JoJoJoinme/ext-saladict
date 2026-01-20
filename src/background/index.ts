@@ -27,20 +27,39 @@ setupCaiyunTrsBackend()
 
 setupRequestGAListener()
 
+// Initialize Offscreen
+if (typeof chrome !== 'undefined' && chrome.offscreen) {
+  chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: [
+      chrome.offscreen.Reason.AUDIO_PLAYBACK,
+      chrome.offscreen.Reason.DOM_PARSER,
+      chrome.offscreen.Reason.CLIPBOARD
+    ],
+    justification: 'Play audio, parse XML, and access clipboard'
+  }).catch(e => {
+    if (!e.message.includes('Only a single offscreen')) {
+      console.error('Failed to create offscreen document:', e)
+    }
+  })
+}
+
+const g = self as any
+
 getConfig().then(async config => {
-  window.appConfig = config
+  g.appConfig = config
   initPdf(config)
   initBadge()
 
   addConfigListener(({ newConfig }) => {
-    window.appConfig = newConfig
+    g.appConfig = newConfig
   })
 })
 
 createActiveProfileStream().subscribe(profile => {
-  window.activeProfile = profile
+  g.activeProfile = profile
 })
 
 createProfileIDListStream().subscribe(list => {
-  window.profileIDList = list
+  g.profileIDList = list
 })
