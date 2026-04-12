@@ -8,12 +8,16 @@ Saladict is a Chrome/Edge Manifest V3 extension for inline dictionary lookup and
 - Build system: WXT + Vite.
 - Firefox/Safari manifests are no longer maintained in this branch.
 - Main user flows are protected by Jest, user-intent acceptance, Playwright E2E, and Puppeteer E2E.
+- Current default preset is mainland-user-first for single-word lookup, while
+  keeping Google Translate for phrase/sentence translation.
 
 See:
 
+- [Docs index](./docs/README.md)
 - [Current architecture](./docs/architecture.md)
 - [MV3 migration status](./MV3_MIGRATION.md)
 - [User-intent acceptance tests](./docs/user-intent-acceptance.md)
+- [Release notes](./docs/releases/v7.20.1.md)
 - [Contributing guide](./CONTRIBUTING.md)
 
 ## Build From Source

@@ -17,6 +17,7 @@
 
 ## Architecture and Runtime
 
+- `REPO-ROOT/docs/README.md`
 - `REPO-ROOT/docs/architecture.md`
 - `REPO-ROOT/MV3_MIGRATION.md`
 - `REPO-ROOT/docs/mv3-runtime-boundaries.md`
@@ -37,9 +38,14 @@
 - `REPO-ROOT/test/e2e/playwright-e2e.mjs`
 - `REPO-ROOT/test/acceptance/playwright-acceptance.mjs`
 
-## Current Methodology Notes
+## Exploratory Notes
 
 - `REPO-ROOT/docs/gacui-method-system-study-2026-04-12.md`
 - `REPO-ROOT/docs/gacui-phase-protocol-mapping-2026-04-12.md`
 - `REPO-ROOT/docs/gacui-vs-ext-saladict-state-comparison-2026-04-12.md`
 - `REPO-ROOT/docs/ext-saladict-phase-system-proposal-2026-04-12.md`
+- `REPO-ROOT/docs/fork-comparison-2026-04-12.md`
+- `REPO-ROOT/docs/protocol-plane-survey-2026-04-12.md`
+- `REPO-ROOT/docs/agent-protocol-execution-plane-discussion.md`
+- `REPO-ROOT/docs/human-agent-collaboration-methodology.md`
+- `REPO-ROOT/docs/vibe-coding-discussion.md`
