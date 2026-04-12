@@ -2,6 +2,16 @@ import { message } from '@/_helpers/browser-api'
 import { Subject } from 'rxjs'
 import { switchMapBy } from '@/_helpers/observables'
 import { timer } from '@/_helpers/promise-more'
+import { getAppConfig } from './state'
+import { locale as zhCNLocale } from '@/_locales/zh-CN/background'
+import { locale as zhTWLocale } from '@/_locales/zh-TW/background'
+import { locale as enLocale } from '@/_locales/en/background'
+
+const backgroundLocales: Record<string, typeof zhCNLocale> = {
+  'zh-CN': zhCNLocale,
+  'zh-TW': zhTWLocale,
+  en: enLocale
+}
 
 interface UpdateBadgeOptions {
   active: boolean
@@ -26,6 +36,8 @@ onUpdated$
         await timer(1000)
       }
 
+      const appConfig = await getAppConfig()
+
       return {
         tabId: o.tabId,
         options: (await message
@@ -33,7 +45,7 @@ onUpdated$
             type: 'GET_TAB_BADGE_INFO'
           })
           .catch(() => {})) || {
-          active: window.appConfig.active,
+          active: appConfig.active,
           tempDisable: false,
           unsupported: true
         }
@@ -71,45 +83,39 @@ export function initBadge() {
   })
 }
 
-function setOff(tabId: number) {
+async function setOff(tabId: number) {
+  const appConfig = await getAppConfig()
   setIcon(true, tabId)
-  // browser.browserAction.setBadgeBackgroundColor({ color: '#E74C3C', tabId })
-  // browser.browserAction.setBadgeText({ text: 'off', tabId })
-  browser.browserAction.setTitle({
-    title: require('@/_locales/' + window.appConfig.langCode + '/background')
-      .locale.app.off,
+  browser.action.setTitle({
+    title: (backgroundLocales[appConfig.langCode] || enLocale).app.off,
     tabId
   })
 }
 
-function setTempOff(tabId: number) {
+async function setTempOff(tabId: number) {
+  const appConfig = await getAppConfig()
   setIcon(true, tabId)
-  // browser.browserAction.setBadgeBackgroundColor({ color: '#F39C12', tabId })
-  // browser.browserAction.setBadgeText({ text: 'off', tabId })
-  browser.browserAction.setTitle({
-    title: require('@/_locales/' + window.appConfig.langCode + '/background')
-      .locale.app.tempOff,
+  browser.action.setTitle({
+    title: (backgroundLocales[appConfig.langCode] || enLocale).app.tempOff,
     tabId
   })
 }
 
-function setUnsupported(tabId: number) {
+async function setUnsupported(tabId: number) {
+  const appConfig = await getAppConfig()
   setIcon(true, tabId)
-  browser.browserAction.setTitle({
-    title: require('@/_locales/' + window.appConfig.langCode + '/background')
-      .locale.app.unsupported,
+  browser.action.setTitle({
+    title: (backgroundLocales[appConfig.langCode] || enLocale).app.unsupported,
     tabId
   })
 }
 
 function setDefault(tabId: number) {
   setIcon(false, tabId)
-  // browser.browserAction.setBadgeText({ text: '', tabId })
-  // browser.browserAction.setTitle({ title: '', tabId })
 }
 
 function setIcon(gray: boolean, tabId: number) {
-  browser.browserAction.setIcon({
+  browser.action.setIcon({
     tabId,
     path: gray
       ? {

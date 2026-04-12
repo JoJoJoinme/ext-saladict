@@ -1,7 +1,7 @@
-import UAParser from 'ua-parser-js'
-import axios from 'axios'
-import uuid from 'uuid/v4'
+import { UAParser } from 'ua-parser-js'
+import { v4 as uuid } from 'uuid'
 import { message, storage } from '@/_helpers/browser-api'
+import { getConfig } from '@/_helpers/config-manager'
 import { genUniqueKey } from '@/_helpers/uniqueKey'
 import { GAEvent, GAEventBase } from './events'
 import { isBackgroundPage } from '../saladict'
@@ -76,6 +76,11 @@ async function requestGA(extraParams: GAParams) {
     })
   }
 
+  const config = await getConfig().catch(() => null)
+  if (config?.analytics === false) {
+    return
+  }
+
   if (
     process.env.DEBUG ||
     process.env.NODE_ENV === 'test' ||
@@ -91,13 +96,12 @@ async function requestGA(extraParams: GAParams) {
     storage.sync.set({ gacid: cid })
   }
 
-  return axios({
-    url: 'https://www.google-analytics.com/collect',
-    method: 'post',
+  return fetch('https://www.google-analytics.com/collect', {
+    method: 'POST',
     headers: {
       'content-type': 'text/plain;charset=UTF-8'
     },
-    data: new URLSearchParams({
+    body: new URLSearchParams({
       // required
       v: '1',
       tid: 'UA-49163616-4',

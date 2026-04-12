@@ -8,6 +8,8 @@ import WordEditorContainer from '@/content/components/WordEditor/WordEditor.cont
 import { I18nContextProvider } from '@/_helpers/i18n'
 import { timer } from '@/_helpers/promise-more'
 import { AntdRootContainer } from './AntdRootContainer'
+import antdLightThemeHref from 'antd/dist/antd.min.css?url'
+import antdDarkThemeHref from 'antd/dist/antd.dark.min.css?url'
 
 import './_style.scss'
 
@@ -45,11 +47,7 @@ async function switchAntdTheme(darkMode: boolean): Promise<void> {
   const $root = document.querySelector('#root')!
 
   await new Promise(resolve => {
-    const filename = `antd${darkMode ? '.dark' : ''}.min.css`
-    const href =
-      process.env.NODE_ENV === 'development'
-        ? `https://cdnjs.cloudflare.com/ajax/libs/antd/4.1.0/${filename}`
-        : `/assets/${filename}`
+    const href = darkMode ? antdDarkThemeHref : antdLightThemeHref
     let $link = document.head.querySelector<HTMLLinkElement>(
       'link#saladict-antd-theme'
     )

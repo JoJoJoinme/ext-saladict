@@ -3,7 +3,10 @@ import { AppConfig, DictID } from '@/app-config'
 import { Profile, ProfileIDList } from '@/app-config/profiles'
 import { Message } from '@/typings/message'
 import { Word } from '@/_helpers/record-manager'
-import { DictSearchResult } from '@/components/dictionaries/helpers'
+import {
+  DictSearchResult,
+  LookupErrorType
+} from '@/components/dictionaries/helpers'
 
 export type ActionCatalog = CreateActionCatalog<{
   NEW_CONFIG: {
@@ -87,6 +90,7 @@ export type ActionCatalog = CreateActionCatalog<{
     payload: {
       id: DictID
       result: any
+      errorType?: LookupErrorType
       catalog?: DictSearchResult<DictID>['catalog']
     }
   }

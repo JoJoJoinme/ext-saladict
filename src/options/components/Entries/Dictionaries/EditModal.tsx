@@ -3,6 +3,16 @@ import { shallowEqual } from 'react-redux'
 import { Translator } from '@opentranslate/translator'
 import { Switch, Select, Checkbox, Button, Modal } from 'antd'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
+
+const engineModules = import.meta.glob<{ getTranslator?: () => Translator }>(
+  '@/components/dictionaries/*/engine.ts',
+  { eager: true }
+)
+const engineMap: Record<string, { getTranslator?: () => Translator }> = {}
+for (const [path, mod] of Object.entries(engineModules)) {
+  const id = path.match(/dictionaries\/([^/]+)\/engine\.ts$/)?.[1]
+  if (id) engineMap[id] = mod
+}
 import { Rule } from 'antd/lib/form'
 import { DictID } from '@/app-config'
 import { useTranslate } from '@/_helpers/i18n'
@@ -156,8 +166,7 @@ export const EditModal: FC<EditModalProps> = ({ dictID, onClose }) => {
               if (optKey === 'tl' || optKey === 'tl2') {
                 const getTranslator:
                   | undefined
-                  | (() => Translator) = require(`@/components/dictionaries/${dictID}/engine`)
-                  .getTranslator
+                  | (() => Translator) = engineMap[dictID]?.getTranslator
 
                 const langs = getTranslator
                   ? getTranslator()

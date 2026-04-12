@@ -97,11 +97,13 @@ export const MenuBar: FC<MenuBarProps> = props => {
         t={t}
         disabled={props.historyIndex <= 0}
         onClick={() => props.switchHistory('prev')}
+        data-testid="lookup-history-back"
       />
       <HistoryNextBtn
         t={t}
         disabled={props.historyIndex >= props.histories.length - 1}
         onClick={() => props.switchHistory('next')}
+        data-testid="lookup-history-forward"
       />
       <SearchBox
         key="searchbox"
@@ -131,6 +133,8 @@ export const MenuBar: FC<MenuBarProps> = props => {
         t={t}
         isFav={props.isInNotebook}
         onClick={props.addToNoteBook}
+        data-testid="lookup-fav-button"
+        data-lookup-active={props.isInNotebook}
         onMouseDown={e => {
           if (e.button === 2) {
             e.preventDefault()
@@ -192,7 +196,11 @@ export const MenuBar: FC<MenuBarProps> = props => {
             onClick={props.togglePin}
             disabled={isOptionsPage() || isPopupPage()}
           />
-          <CloseBtn t={t} onClick={props.onClose} />
+          <CloseBtn
+            t={t}
+            onClick={props.onClose}
+            data-testid="lookup-close-button"
+          />
         </>
       )}
     </header>

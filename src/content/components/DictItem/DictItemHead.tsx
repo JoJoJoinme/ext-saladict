@@ -5,6 +5,16 @@ import { useTranslate } from '@/_helpers/i18n'
 import { message } from '@/_helpers/browser-api'
 import { HoverBox, HoverBoxItem } from '@/components/HoverBox'
 
+const faviconModules = import.meta.glob<{ default: string }>(
+  '@/components/dictionaries/*/favicon.png',
+  { eager: true }
+)
+const faviconMap: Record<string, string> = {}
+for (const [path, mod] of Object.entries(faviconModules)) {
+  const id = path.match(/dictionaries\/([^/]+)\/favicon\.png$/)?.[1]
+  if (id) faviconMap[id] = mod.default
+}
+
 export interface DictItemHeadProps {
   dictID: DictID
   isSearching: boolean
@@ -48,10 +58,7 @@ export const DictItemHead: FC<DictItemHeadProps> = props => {
   }, [props.isSearching])
 
   const icon = useMemo(
-    () =>
-      browser.runtime.getURL(
-        require('@/components/dictionaries/' + props.dictID + '/favicon.png')
-      ),
+    () => faviconMap[props.dictID] || '',
     [props.dictID]
   )
 
@@ -130,7 +137,11 @@ export const DictItemHead: FC<DictItemHeadProps> = props => {
         }}
       />
       {showLoader && (
-        <div className="dictItemHead-Loader">
+        <div
+          className="dictItemHead-Loader"
+          data-testid="lookup-dict-loading"
+          data-lookup-state="loading"
+        >
           <div />
           <div />
           <div />

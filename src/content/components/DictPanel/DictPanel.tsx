@@ -11,6 +11,7 @@ import { useUpdateEffect } from 'react-use'
 import { getScrollbarWidth } from '@/_helpers/scrollbar-width'
 import { SALADICT_PANEL, isInternalPage } from '@/_helpers/saladict'
 import { HoverBoxContext } from '@/components/HoverBox'
+import { LookupPanelSummary } from '@/content/acceptance/lookup-contract'
 
 export interface DictPanelProps {
   /** Update position command from uptream */
@@ -33,6 +34,7 @@ export interface DictPanelProps {
 
   dragStartCoord: null | { x: number; y: number }
   onDragEnd: () => void
+  acceptance: LookupPanelSummary
 }
 
 export const DictPanel: FC<DictPanelProps> = props => {
@@ -90,6 +92,16 @@ export const DictPanel: FC<DictPanelProps> = props => {
         className={classnames('dictPanel-Root', SALADICT_PANEL, {
           isDragging: props.dragStartCoord
         })}
+        role="dialog"
+        aria-label="Saladict lookup panel"
+        aria-busy={props.acceptance.state === 'loading'}
+        data-testid="lookup-panel"
+        data-lookup-state={props.acceptance.state}
+        data-lookup-terminal={props.acceptance.terminal}
+        data-lookup-success-count={props.acceptance.counts.success}
+        data-lookup-empty-count={props.acceptance.counts.empty}
+        data-lookup-error-count={props.acceptance.counts.error}
+        data-lookup-loading-count={props.acceptance.counts.loading}
         style={{
           left: x,
           top: y,
@@ -107,6 +119,7 @@ export const DictPanel: FC<DictPanelProps> = props => {
             className={`dictPanel-Body${
               getScrollbarWidth() > 0 ? ' fancy-scrollbar' : ''
             }`}
+            data-testid="lookup-panel-body"
           >
             {props.mtaBox}
             {props.dictList}

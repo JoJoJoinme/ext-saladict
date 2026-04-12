@@ -35,6 +35,8 @@ export const SaladBowl: FC<SaladBowlProps> = props => {
   return (
     <div
       role="img"
+      data-testid="lookup-bowl"
+      data-saladict-role="lookup-bowl"
       className={classnames('saladbowl', SALADICT_EXTERNAL, {
         enableHover: props.enableHover
       })}

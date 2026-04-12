@@ -33,6 +33,27 @@ export const search: SearchFunction<
   YoudaotransResult,
   MachineTranslatePayload<YoudaotransLanguage>
 > = async (rawText, config, profile, payload) => {
+  const hasCredential = Boolean(
+    (config.dictAuth.youdaotrans.appKey && config.dictAuth.youdaotrans.key) ||
+      (process.env.YOUDAO_APPKEY && process.env.YOUDAO_KEY)
+  )
+  if (!hasCredential) {
+    return machineResult(
+      {
+        result: {
+          requireCredential: true,
+          id: 'youdaotrans',
+          sl: 'auto',
+          tl: 'auto',
+          slInitial: 'hide',
+          searchText: { paragraphs: [''] },
+          trans: { paragraphs: [''] }
+        }
+      },
+      []
+    )
+  }
+
   const translator = getTranslator()
 
   const { sl, tl, text } = await getMTArgs(
@@ -43,8 +64,8 @@ export const search: SearchFunction<
     payload
   )
 
-  const appKey = config.dictAuth.youdaotrans.appKey
-  const key = config.dictAuth.youdaotrans.key
+  const appKey = config.dictAuth.youdaotrans.appKey || process.env.YOUDAO_APPKEY
+  const key = config.dictAuth.youdaotrans.key || process.env.YOUDAO_KEY
   const translatorConfig = appKey && key ? { appKey, key } : undefined
 
   try {

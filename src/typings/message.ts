@@ -1,6 +1,9 @@
 import { Word, DBArea } from '@/_helpers/record-manager'
 import { DictID } from '@/app-config'
-import { DictSearchResult } from '@/components/dictionaries/helpers'
+import {
+  DictSearchResult,
+  LookupErrorType
+} from '@/components/dictionaries/helpers'
 import { OpenUrlOptions } from '@/_helpers/browser-api'
 
 type MessageConfigType<
@@ -72,8 +75,44 @@ export type MessageConfig = MessageConfigType<{
     response: {
       id: DictID
       result: any
+      errorType?: LookupErrorType
       catalog?: DictSearchResult<DictID>['catalog']
       audio?: DictSearchResult<DictID>['audio']
+    }
+  }
+
+  TEST_CONFIGURE_ACCEPTANCE_RUNTIME: {
+    payload: {
+      selectedDicts?: DictID[]
+      stickyFold?: boolean
+      waveform?: boolean
+      mtaAutoUnfold?: '' | 'once' | 'always' | 'popup' | 'hide'
+      config?: Record<string, any>
+      acceptanceMock?: {
+        dictId: DictID
+        query: string
+        state: 'success' | 'empty' | 'error'
+      } | null
+    }
+    response: {
+      selectedDicts: DictID[]
+    }
+  }
+
+  TEST_TRIGGER_COMMAND: {
+    payload: {
+      command:
+        | 'search-clipboard'
+        | 'open-pdf'
+        | 'open-google'
+        | 'next-profile'
+      clipboardText?: string
+      pdfUrl?: string
+    }
+    response: {
+      ok: boolean
+      activeProfileId?: string
+      error?: string
     }
   }
 

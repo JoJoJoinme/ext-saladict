@@ -71,7 +71,11 @@ export const searchStartEpic: Epic = (action$, state$) =>
                       : { isPDF: isPDFPage() }
                 }
               })
-              .catch(() => ({ id, result: null }))
+              .catch(() => ({
+                id,
+                result: null,
+                errorType: 'UNKNOWN_ERROR' as const
+              }))
         )
       ).pipe(share())
 
@@ -127,9 +131,9 @@ export const searchStartEpic: Epic = (action$, state$) =>
         ),
         searchResults$$.pipe(
           map(
-            ({ id, result, catalog }): StoreAction => ({
+            ({ id, result, catalog, errorType }): StoreAction => ({
               type: 'SEARCH_END',
-              payload: { id, result, catalog }
+              payload: { id, result, catalog, errorType }
             })
           )
         ),

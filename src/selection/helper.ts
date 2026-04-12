@@ -2,7 +2,6 @@ import { AppConfig } from '@/app-config'
 import { Observable, fromEvent, merge, of } from 'rxjs'
 import { map, mapTo, filter, distinctUntilChanged } from 'rxjs/operators'
 import { newWord, Word } from '@/_helpers/record-manager'
-import { message } from '@/_helpers/browser-api'
 import { isTagName } from '@/_helpers/dom'
 
 const isMac = /mac/i.test(navigator.platform)
@@ -82,18 +81,25 @@ export function isBlacklisted(config: AppConfig): boolean {
 export async function newSelectionWord(
   word: Partial<Word> = {}
 ): Promise<Word> {
-  const info = await message.send<'PAGE_INFO'>({ type: 'PAGE_INFO' })
-  window.faviconURL = info.faviconURL
-  if (info.pageTitle) {
-    window.pageTitle = info.pageTitle
-  }
-  if (info.pageURL) {
-    window.pageURL = info.pageURL
-  }
+  return Promise.resolve(newSelectionWordLocal(word))
+}
+
+export function newSelectionWordLocal(word: Partial<Word> = {}): Word {
   return newWord({
-    title: info.pageTitle || document.title || '',
-    url: info.pageURL || document.URL || '',
-    favicon: info.faviconURL || '',
+    title: document.title || '',
+    url: document.URL || '',
+    favicon: getPageFaviconURL(),
     ...word
   })
+}
+
+function getPageFaviconURL(): string {
+  if (window.faviconURL) {
+    return window.faviconURL
+  }
+
+  const icon = document.querySelector<HTMLLinkElement>(
+    'link[rel~="icon"], link[rel="shortcut icon"]'
+  )
+  return icon?.href || ''
 }

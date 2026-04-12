@@ -11,6 +11,7 @@ import { MenuBarContainer } from '../MenuBar/MenuBar.container'
 import { MtaBoxContainer } from '../MtaBox/MtaBox.container'
 import { DictListContainer } from '../DictList/DictList.container'
 import { WaveformBoxContainer } from '../WaveformBox/WaveformBox.container'
+import { summarizeLookupPanel } from '@/content/acceptance/lookup-contract'
 
 const menuBar = <MenuBarContainer />
 const dictList = <DictListContainer />
@@ -33,6 +34,7 @@ const mapStateToProps: MapStateToProps<
   withAnimation: state.config.animation,
   panelCSS: state.config.panelCSS,
   darkMode: state.config.darkMode,
+  acceptance: summarizeLookupPanel(state.renderedDicts),
   menuBar,
   mtaBox: state.isShowMtaBox ? <MtaBoxContainer /> : null,
   dictList,

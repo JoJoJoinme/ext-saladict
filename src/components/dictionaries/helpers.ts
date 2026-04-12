@@ -79,6 +79,7 @@ export interface ViewPorps<T> {
 }
 
 export type SearchErrorType = 'NO_RESULT' | 'NETWORK_ERROR'
+export type LookupErrorType = SearchErrorType | 'UNKNOWN_ERROR'
 
 export function handleNoResult<T = any>(): Promise<T> {
   return Promise.reject(new Error('NO_RESULT'))

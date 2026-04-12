@@ -177,6 +177,7 @@ export const actionHandlers: ActionHandlers<State, ActionCatalog> = {
               id: d.id,
               searchStatus: 'FINISH',
               searchResult: payload.result,
+              searchError: payload.errorType || null,
               catalog: payload.catalog
             }
           : d

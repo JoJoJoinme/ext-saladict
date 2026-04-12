@@ -1,0 +1,193 @@
+{
+  "task_id": "T1",
+  "task_type": "migration",
+  "user_visible_changes": true,
+  "spec_carrier": "test/acceptance/spec.json",
+  "bdd_status": "bdd_covered",
+  "implementation_allowed": true,
+  "baseline_inputs": {
+    "explicit_product_baseline": [
+      "docs/user-intent-acceptance.md",
+      "test/acceptance/spec.json",
+      "docs/migration-baseline-discovery.md"
+    ],
+    "legacy_implementation_baseline": [
+      "docs/mv2-capability-inventory.md"
+    ]
+  },
+  "covered_scenarios": [
+    "lookup-success",
+    "lookup-empty",
+    "lookup-network-error",
+    "lookup-terminal-transitions",
+    "lookup-search-refines-query",
+    "lookup-close-and-reopen",
+    "lookup-add-to-notebook",
+    "lookup-history-navigation",
+    "lookup-long-selection-translation",
+    "lookup-long-selection-fragment-translation",
+    "quick-search-open-window",
+    "quick-search-reuse-window",
+    "quick-search-selection-preload",
+    "quick-search-selection-auto-search",
+    "pdf-open-current-page",
+    "pdf-open-link",
+    "pdf-sniff-redirect",
+    "trigger-context-menu-lookup",
+    "trigger-command-search-clipboard",
+    "page-popup-renders",
+    "page-options-renders",
+    "page-history-renders",
+    "page-notebook-renders",
+    "page-word-editor-renders",
+    "page-audio-control-renders",
+    "audio-playback-trigger",
+    "clipboard-roundtrip"
+    ,"profiles-switch-command"
+    ,"options-profiles-entry-renders"
+    ,"options-search-modes-entry-renders"
+    ,"options-dictionaries-entry-renders"
+    ,"options-dict-auths-entry-renders"
+    ,"page-translate-open-google-command"
+    ,"page-translate-youdao-context-menu"
+    ,"notebook-sync-config-renders"
+    ,"settings-permissions-entry-renders"
+    ,"settings-privacy-entry-renders"
+    ,"settings-blackwhitelist-entry-renders"
+    ,"settings-importexport-entry-renders"
+  ],
+  "pending_features": [
+    {
+      "id": "F5",
+      "name": "Quick Search",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "quick-search-open-window",
+        "quick-search-reuse-window",
+        "quick-search-selection-preload",
+        "quick-search-selection-auto-search"
+      ],
+      "baseline_doc": "docs/feature-quick-search-baseline.md",
+      "proposal_doc": "docs/spec-quick-search-proposal.md",
+      "test_doc": "docs/test-tech-story-quick-search.md"
+    },
+    {
+      "id": "F6",
+      "name": "Trigger Entry Paths",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "trigger-context-menu-lookup",
+        "trigger-command-search-clipboard"
+      ],
+      "baseline_doc": "docs/feature-trigger-entry-baseline.md"
+    },
+    {
+      "id": "F7",
+      "name": "Extension Pages",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "page-popup-renders",
+        "page-options-renders",
+        "page-history-renders",
+        "page-notebook-renders",
+        "page-word-editor-renders",
+        "page-audio-control-renders"
+      ],
+      "baseline_doc": "docs/feature-extension-pages-baseline.md"
+    },
+    {
+      "id": "F8",
+      "name": "PDF",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "pdf-open-current-page",
+        "pdf-open-link",
+        "pdf-sniff-redirect"
+      ],
+      "baseline_doc": "docs/feature-pdf-baseline.md",
+      "proposal_doc": "docs/spec-pdf-proposal.md",
+      "test_doc": "docs/test-tech-story-pdf.md"
+    },
+    {
+      "id": "F9",
+      "name": "Audio Playback",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "audio-playback-trigger"
+      ],
+      "baseline_doc": "docs/feature-audio-baseline.md"
+    },
+    {
+      "id": "F10",
+      "name": "Clipboard",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "clipboard-roundtrip"
+      ],
+      "baseline_doc": "docs/feature-clipboard-baseline.md"
+    },
+    {
+      "id": "F11",
+      "name": "Profiles and Search Modes",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "profiles-switch-command",
+        "options-profiles-entry-renders",
+        "options-search-modes-entry-renders"
+      ],
+      "baseline_doc": "docs/feature-profiles-search-modes-baseline.md"
+    },
+    {
+      "id": "F12",
+      "name": "Provider System",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "options-dictionaries-entry-renders",
+        "options-dict-auths-entry-renders"
+      ],
+      "baseline_doc": "docs/feature-provider-system-baseline.md"
+    },
+    {
+      "id": "F13",
+      "name": "Page Translation",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "page-translate-open-google-command",
+        "page-translate-youdao-context-menu"
+      ],
+      "baseline_doc": "docs/feature-page-translation-baseline.md"
+    },
+    {
+      "id": "F14",
+      "name": "Notebook Sync Services",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "notebook-sync-config-renders"
+      ],
+      "baseline_doc": "docs/feature-notebook-sync-baseline.md"
+    },
+    {
+      "id": "F15",
+      "name": "Settings Surfaces",
+      "user_visible": true,
+      "status": "bdd_covered",
+      "scenario_ids": [
+        "settings-permissions-entry-renders",
+        "settings-privacy-entry-renders",
+        "settings-blackwhitelist-entry-renders",
+        "settings-importexport-entry-renders"
+      ],
+      "baseline_doc": "docs/feature-settings-surfaces-baseline.md"
+    }
+  ]
+}

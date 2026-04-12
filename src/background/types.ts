@@ -1,10 +1,5 @@
-import { AppConfig } from '@/app-config'
-import { Profile, ProfileIDList } from '@/app-config/profiles'
+// MV3: Window interface extensions removed.
+// Global state is now managed via src/background/state.ts
+// This file is kept for backwards compatibility with imports.
 
-declare global {
-  interface Window {
-    appConfig: AppConfig
-    activeProfile: Profile
-    profileIDList: ProfileIDList
-  }
-}
+export {}

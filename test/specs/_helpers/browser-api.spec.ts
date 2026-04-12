@@ -1,6 +1,7 @@
 import { message, storage, openUrl } from '@/_helpers/browser-api'
 import { take } from 'rxjs/operators'
-import sinon from 'sinon'
+// Use sinon-chrome's bundled sinon (CJS) to avoid ESM import issues with sinon v21
+const sinon = require('sinon-chrome/node_modules/sinon')
 import { browser } from '../../helper'
 import { Message } from '@/typings/message'
 
@@ -11,6 +12,8 @@ describe('Browser API Wapper', () => {
     delete window.faviconURL
     delete window.pageTitle
     delete window.pageURL
+    delete document.documentElement.dataset.saladictPageId
+    document.title = ''
     browser.runtime.sendMessage.callsFake(() => Promise.resolve({}))
     browser.tabs.sendMessage.callsFake(() => Promise.resolve({}))
   })
@@ -440,22 +443,13 @@ describe('Browser API Wapper', () => {
     })
 
     it('message.self.initClient', () => {
-      browser.runtime.sendMessage.withArgs({ type: 'PAGE_INFO' }).returns(
-        Promise.resolve({
-          pageId: 'pageId',
-          faviconURL: 'faviconURL',
-          pageTitle: 'pageTitle',
-          pageURL: 'pageURL'
-        })
-      )
+      document.title = 'Client Page'
       return message.self.initClient().then(() => {
-        expect(
-          browser.runtime.sendMessage.calledWith({ type: 'PAGE_INFO' })
-        ).toBeTruthy()
-        expect(window.pageId).toBe('pageId')
-        expect(window.faviconURL).toBe('faviconURL')
-        expect(window.pageTitle).toBe('pageTitle')
-        expect(window.pageURL).toBe('pageURL')
+        expect(typeof window.pageId).toBe('string')
+        expect(window.pageId).toBe(document.documentElement.dataset.saladictPageId)
+        expect(window.faviconURL).toBe('')
+        expect(window.pageTitle).toBe('Client Page')
+        expect(window.pageURL).toBe(window.location.href)
       })
     })
     describe('message.self.initServer', () => {
@@ -470,17 +464,21 @@ describe('Browser API Wapper', () => {
         message.self.initServer()
         expect(browser.runtime.onMessage.addListener.calledOnce).toBeTruthy()
 
-        browser.runtime.onMessage['_listeners']
-          [0]({ type: 'PAGE_INFO' }, { tab })
-          .then(response => {
-            expect(response).toEqual({
-              pageId: tab.id,
-              faviconURL: tab.favIconUrl,
-              pageTitle: tab.title,
-              pageURL: tab.url
-            })
-            done()
+        const sendResponse = jest.fn(response => {
+          expect(response).toEqual({
+            pageId: tab.id,
+            faviconURL: tab.favIconUrl,
+            pageTitle: tab.title,
+            pageURL: tab.url
           })
+          done()
+        })
+
+        browser.runtime.onMessage['_listeners'][0](
+          { type: 'PAGE_INFO' },
+          { tab },
+          sendResponse
+        )
       })
 
       it('From browser action page', done => {
@@ -488,12 +486,16 @@ describe('Browser API Wapper', () => {
         expect(browser.runtime.onMessage.addListener.calledOnce).toBeTruthy()
 
         const sendResponse = jest.fn()
-        browser.runtime.onMessage['_listeners']
-          [0]({ type: 'PAGE_INFO' }, {}, sendResponse)
-          .then(response => {
-            expect(response).toHaveProperty('pageId', 'popup')
-            done()
-          })
+        browser.runtime.onMessage['_listeners'][0](
+          { type: 'PAGE_INFO' },
+          {},
+          sendResponse
+        )
+
+        expect(sendResponse).toHaveBeenCalledWith(
+          expect.objectContaining({ pageId: 'popup' })
+        )
+        done()
       })
 
       it('Self page message transmission', () => {

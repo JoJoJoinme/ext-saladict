@@ -4,6 +4,10 @@ import { getDefaultConfig } from '@/app-config'
 import getDefaultProfile, { ProfileMutable } from '@/app-config/profiles'
 
 describe('Dict/Zdic/engine', () => {
+  beforeEach(() => {
+    ;(chrome.declarativeNetRequest.updateSessionRules as jest.Mock).mockClear()
+  })
+
   it('should parse word result correctly', () => {
     return retry(() =>
       search('爱', getDefaultConfig(), getDefaultProfile(), {
@@ -23,6 +27,7 @@ describe('Dict/Zdic/engine', () => {
         ({ result, audio }) => {
           expect(audio && typeof audio.py).toBe('string')
           expect(result.length).toBeGreaterThan(0)
+          expect(chrome.declarativeNetRequest.updateSessionRules).not.toHaveBeenCalled()
         }
       )
     )

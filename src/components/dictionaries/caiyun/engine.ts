@@ -33,6 +33,26 @@ export const search: SearchFunction<
   CaiyunResult,
   MachineTranslatePayload<CaiyunLanguage>
 > = async (rawText, config, profile, payload) => {
+  const hasCredential = Boolean(
+    config.dictAuth.caiyun.token || process.env.CAIYUN_TOKEN
+  )
+  if (!hasCredential) {
+    return machineResult(
+      {
+        result: {
+          requireCredential: true,
+          id: 'caiyun',
+          sl: 'auto',
+          tl: 'auto',
+          slInitial: 'hide',
+          searchText: { paragraphs: [''] },
+          trans: { paragraphs: [''] }
+        }
+      },
+      []
+    )
+  }
+
   const translator = getTranslator()
   const langcodes = translator.getSupportLanguages()
 
@@ -56,7 +76,7 @@ export const search: SearchFunction<
     }
   } catch (e) {}
 
-  const caiYunToken = config.dictAuth.caiyun.token
+  const caiYunToken = config.dictAuth.caiyun.token || process.env.CAIYUN_TOKEN
   const caiYunConfig = caiYunToken ? { token: caiYunToken } : undefined
 
   try {

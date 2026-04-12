@@ -11,6 +11,36 @@ jest.mock('@/background/sync-manager/helpers')
 
 const helpers: typeof helpersMock = require('@/background/sync-manager/helpers')
 
+function makeResponse(
+  body: string | null = '',
+  init: { status?: number; headers?: { [index: string]: string } } = {}
+) {
+  const status = init.status ?? 200
+  const normalizedHeaders = Object.entries(init.headers || {}).reduce(
+    (acc, [key, value]) => {
+      acc[key.toLowerCase()] = value
+      return acc
+    },
+    {} as Record<string, string>
+  )
+
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get(name: string) {
+        return normalizedHeaders[name.toLowerCase()] || null
+      }
+    },
+    async text() {
+      return body ?? ''
+    },
+    async json() {
+      return body == null ? null : JSON.parse(body)
+    }
+  }
+}
+
 const fetchArgs = {
   checkServer(config: SyncConfig) {
     return [
@@ -88,22 +118,27 @@ function mockFetch(
     return o
   }, {})
 
-  window.fetch = jest.fn(
+  const fetchMock = jest.fn(
     (url: string, init?: RequestInit): Promise<Response> => {
       const key = urltokey[url + ((init && init.method) || '')]
       const handler = key && route[key]
       if (handler) {
         return Promise.resolve(handler(url, init))
       }
-      return Promise.resolve(new Response())
+      throw new Error(`Unexpected fetch: ${url} ${((init && init.method) || 'GET') as string}`)
     }
   ) as any
+
+  window.fetch = fetchMock
+  ;(global as any).fetch = fetchMock
 }
 
 describe('Sync service WebDAV', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(global as any).btoa = window.btoa.bind(window)
     window.fetch = null as any
+    ;(global as any).fetch = null
   })
 
   it('upload: should success', async () => {
@@ -116,7 +151,7 @@ describe('Sync service WebDAV', () => {
     }
 
     const fetchInit = {
-      upload: jest.fn(() => new Response())
+      upload: jest.fn(() => makeResponse())
     }
     mockFetch(config, fetchInit)
 
@@ -160,7 +195,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(JSON.stringify(file), {
+            makeResponse(JSON.stringify(file), {
               headers: {
                 etag
               }
@@ -204,7 +239,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(JSON.stringify(file), {
+            makeResponse(JSON.stringify(file), {
               headers: {
                 etag
               }
@@ -244,7 +279,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(null, {
+            makeResponse(null, {
               status: 304,
               headers: {
                 etag
@@ -296,7 +331,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(JSON.stringify(file), {
+            makeResponse(JSON.stringify(file), {
               headers: {
                 etag
               }
@@ -350,7 +385,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(JSON.stringify(file), {
+            makeResponse(JSON.stringify(file), {
               headers: {
                 etag
               }
@@ -398,7 +433,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(JSON.stringify(file), {
+            makeResponse(JSON.stringify(file), {
               headers: {
                 etag
               }
@@ -434,7 +469,7 @@ describe('Sync service WebDAV', () => {
       const fetchInit = {
         download: jest.fn(
           () =>
-            new Response(null, {
+            makeResponse(null, {
               status: 404
             })
         )
@@ -481,17 +516,17 @@ describe('Sync service WebDAV', () => {
       const etag = 'etag222'
 
       const fetchInit = {
-        checkServer: jest.fn(() => new Response(genXML())),
-        upload: jest.fn(() => new Response()),
+        checkServer: jest.fn(() => makeResponse(genXML())),
+        upload: jest.fn(() => makeResponse()),
         download: jest.fn(
           () =>
-            new Response(fileText, {
+            makeResponse(fileText, {
               headers: {
                 etag
               }
             })
         ),
-        createDir: jest.fn(() => new Response())
+        createDir: jest.fn(() => makeResponse())
       }
 
       mockFetch(config, fetchInit)
@@ -514,7 +549,7 @@ describe('Sync service WebDAV', () => {
       expect(helpers.setNotebook).toHaveBeenCalledTimes(0)
     })
 
-    it('should do nothing if local files are older', async () => {
+    it('should reject with "exist" if remote directory already has notebook data', async () => {
       const config: SyncConfig = {
         enable: true,
         url: 'https://example.com/dav/',
@@ -538,17 +573,17 @@ describe('Sync service WebDAV', () => {
       const etag = 'etag222'
 
       const fetchInit = {
-        checkServer: jest.fn(() => new Response(genXML(true))),
-        upload: jest.fn(() => new Response()),
+        checkServer: jest.fn(() => makeResponse(genXML(true))),
+        upload: jest.fn(() => makeResponse()),
         download: jest.fn(
           () =>
-            new Response(fileText, {
+            makeResponse(fileText, {
               headers: {
                 etag
               }
             })
         ),
-        createDir: jest.fn(() => new Response())
+        createDir: jest.fn(() => makeResponse())
       }
 
       helpers.getMeta.mockImplementationOnce(
@@ -563,9 +598,13 @@ describe('Sync service WebDAV', () => {
       const service = new Service(config)
       service.download = jest.fn(() => Promise.resolve())
 
-      await service.init()
+      try {
+        await service.init()
+      } catch (e) {
+        expect(e.message).toBe('exist')
+      }
 
-      expect(service.download).toHaveBeenCalledTimes(0)
+      expect(service.download).toHaveBeenCalledTimes(1)
       expect(fetchInit.checkServer).toHaveBeenCalledTimes(1)
       expect(fetchInit.checkServer).lastCalledWith(
         ...fetchArgs.checkServer(config)
@@ -588,10 +627,10 @@ describe('Sync service WebDAV', () => {
       }
 
       const fetchInit = {
-        checkServer: jest.fn(() => new Response(null, { status: 404 })),
-        upload: jest.fn(() => new Response()),
-        download: jest.fn(() => new Response()),
-        createDir: jest.fn(() => new Response())
+        checkServer: jest.fn(() => makeResponse(null, { status: 404 })),
+        upload: jest.fn(() => makeResponse()),
+        download: jest.fn(() => makeResponse()),
+        createDir: jest.fn(() => makeResponse())
       }
 
       mockFetch(config, fetchInit)
@@ -628,10 +667,10 @@ describe('Sync service WebDAV', () => {
       }
 
       const fetchInit = {
-        checkServer: jest.fn(() => new Response(genXML(true))),
-        upload: jest.fn(() => new Response()),
-        download: jest.fn(() => new Response()),
-        createDir: jest.fn(() => new Response(null, { status: 504 }))
+        checkServer: jest.fn(() => makeResponse(genXML())),
+        upload: jest.fn(() => makeResponse()),
+        download: jest.fn(() => makeResponse()),
+        createDir: jest.fn(() => makeResponse(null, { status: 504 }))
       }
 
       mockFetch(config, fetchInit)

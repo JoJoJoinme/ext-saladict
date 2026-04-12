@@ -2,7 +2,7 @@ import * as pm from '@/_helpers/promise-more'
 
 describe('Promise More', () => {
   beforeAll(() => {
-    jest.useFakeTimers()
+    jest.useFakeTimers({ legacyFakeTimers: true })
   })
   afterAll(() => {
     jest.useRealTimers()

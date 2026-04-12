@@ -42,6 +42,27 @@ export const search: SearchFunction<
   BaiduResult,
   MachineTranslatePayload<BaiduLanguage>
 > = async (rawText, config, profile, payload) => {
+  const hasCredential = Boolean(
+    (config.dictAuth.baidu.appid && config.dictAuth.baidu.key) ||
+      (process.env.BAIDU_APPID && process.env.BAIDU_KEY)
+  )
+  if (!hasCredential) {
+    return machineResult(
+      {
+        result: {
+          requireCredential: true,
+          id: 'baidu',
+          slInitial: 'hide',
+          sl: 'auto',
+          tl: 'auto',
+          searchText: { paragraphs: [''] },
+          trans: { paragraphs: [''] }
+        }
+      },
+      []
+    )
+  }
+
   const translator = getTranslator()
 
   const { sl, tl, text } = await getMTArgs(
@@ -52,8 +73,8 @@ export const search: SearchFunction<
     payload
   )
 
-  const appid = config.dictAuth.baidu.appid
-  const key = config.dictAuth.baidu.key
+  const appid = config.dictAuth.baidu.appid || process.env.BAIDU_APPID
+  const key = config.dictAuth.baidu.key || process.env.BAIDU_KEY
   const translatorConfig = appid && key ? { appid, key } : undefined
 
   try {

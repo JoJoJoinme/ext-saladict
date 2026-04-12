@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saladict Acceptance Fixture</title>
+    <style>
+      body {
+        margin: 48px auto;
+        max-width: 760px;
+        font: 18px/1.7 Georgia, serif;
+        color: #1f2933;
+      }
+
+      h1 {
+        margin-bottom: 24px;
+        font-size: 40px;
+      }
+
+      .target {
+        margin: 18px 0;
+        padding: 12px 14px;
+        border-left: 4px solid #d0d7de;
+        background: #f8fafc;
+      }
+
+      .label {
+        display: block;
+        margin-bottom: 6px;
+        font: 12px/1.4 ui-monospace, monospace;
+        color: #52606d;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Saladict Acceptance Fixture</h1>
+    <p class="target" id="word-success">
+      <span class="label">success</span>
+      Example
+    </p>
+    <p class="target" id="word-empty">
+      <span class="label">empty</span>
+      zzzznotaword
+    </p>
+    <p class="target" id="word-error">
+      <span class="label">error</span>
+      offlineword
+    </p>
+    <p class="target" id="word-notebook">
+      <span class="label">notebook</span>
+      notebookword
+    </p>
+    <p class="target" id="sentence-long">
+      <span class="label">long sentence</span>
+      general secretary of the Communist Party of China
+    </p>
+    <p class="target" id="sentence-fragment">
+      <span class="label">long fragment</span>
+      general secretary of the Communist Party of China Central
+    </p>
+  </body>
+</html>

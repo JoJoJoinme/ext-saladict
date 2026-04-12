@@ -1,3 +1,5 @@
+@use "sass:math";
+
 #waveform-container {
   min-height: 128px;
   background: var(--color-background);

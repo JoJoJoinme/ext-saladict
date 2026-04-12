@@ -6,6 +6,7 @@ import DictPanelContainer from './components/DictPanel/DictPanel.container'
 import WordEditorContainer from './components/WordEditor/WordEditor.container'
 import { createStore } from './redux'
 
+import { message } from '@/_helpers/browser-api'
 import { I18nContextProvider } from '@/_helpers/i18n'
 
 import './_style.scss'
@@ -14,10 +15,11 @@ import './_style.scss'
 if (window.parent === window && !window.__SALADICT_PANEL_LOADED__) {
   window.__SALADICT_PANEL_LOADED__ = true
 
-  main()
+  void main()
 }
 
 async function main() {
+  await message.self.initClient()
   const store = await createStore()
   const App = () => (
     <ProviderRedux store={store}>

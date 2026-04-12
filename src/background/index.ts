@@ -13,9 +13,9 @@ import { BackgroundServer } from './server'
 import { initBadge } from './badge'
 import { setupCaiyunTrsBackend } from './page-translate/caiyun'
 import { setupRequestGAListener } from '@/_helpers/analytics'
-import './types'
+import { setAppConfig, setActiveProfile, setProfileIDList } from './state'
 
-// init first to recevice self messaging
+// init first to receive self messaging
 message.self.initServer()
 
 startSyncServiceInterval()
@@ -28,19 +28,19 @@ setupCaiyunTrsBackend()
 setupRequestGAListener()
 
 getConfig().then(async config => {
-  window.appConfig = config
+  setAppConfig(config)
   initPdf(config)
   initBadge()
 
   addConfigListener(({ newConfig }) => {
-    window.appConfig = newConfig
+    setAppConfig(newConfig)
   })
 })
 
 createActiveProfileStream().subscribe(profile => {
-  window.activeProfile = profile
+  setActiveProfile(profile)
 })
 
 createProfileIDListStream().subscribe(list => {
-  window.profileIDList = list
+  setProfileIDList(list)
 })

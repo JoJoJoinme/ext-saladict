@@ -1,74 +1,57 @@
-# 沙拉查词 Saladict
+# Saladict 沙拉查词
 
-[![Version](https://img.shields.io/github/release/crimx/ext-saladict.svg?label=version)](https://github.com/crimx/ext-saladict/releases)
-[![Chrome Web Store](https://badgen.net/chrome-web-store/users/cdonnmffkdaoajfknoeeecmchibpmkmg?icon=chrome&color=0f9d58)](https://chrome.google.com/webstore/detail/cdonnmffkdaoajfknoeeecmchibpmkmg?hl=en)
-[![Chrome Web Store](https://badgen.net/chrome-web-store/stars/cdonnmffkdaoajfknoeeecmchibpmkmg?icon=chrome&color=0f9d58)](https://chrome.google.com/webstore/detail/cdonnmffkdaoajfknoeeecmchibpmkmg?hl=en)
-[![Mozilla Add-on](https://badgen.net/amo/users/ext-saladict?icon=firefox&color=ff9500)](https://addons.mozilla.org/firefox/addon/ext-saladict/)
-[![Mozilla Add-on](https://badgen.net/amo/stars/ext-saladict?icon=firefox&color=ff9500)](https://addons.mozilla.org/firefox/addon/ext-saladict/)
+Saladict 是一个基于 Chrome/Edge Manifest V3 的划词查词与翻译扩展。
 
-[![Build Status](https://travis-ci.com/crimx/ext-saladict.svg)](https://travis-ci.com/crimx/ext-saladict)
-[![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg?maxAge=2592000)](http://commitizen.github.io/cz-cli/)
-[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-brightgreen.svg?maxAge=2592000)](https://conventionalcommits.org)
-[![Standard - JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg?maxAge=2592000)](https://standardjs.com/)
-[![License](https://img.shields.io/github/license/crimx/ext-saladict.svg?colorB=44cc11?maxAge=2592000)](https://github.com/crimx/ext-saladict/blob/dev/LICENSE)
+## 当前状态
 
-[【官网】](https://www.crimx.com/ext-saladict/)Chrome/Firefox 浏览器插件，网页划词翻译。
+- 当前分支上的 MV2 -> MV3 迁移，对 Chrome/Edge 运行时已经完成。
+- 构建系统已经切到 WXT + Vite。
+- Firefox/Safari 的 manifest 在这个分支里不再继续维护。
+- 主要用户链路已经由 Jest、用户意图验收、Playwright E2E、Puppeteer E2E 覆盖。
 
-<p align="center">
-  <a href="https://github.com/crimx/ext-saladict/releases/" target="_blank"><img src="https://raw.githubusercontent.com/wiki/crimx/ext-saladict/images/notebook.gif" /></a>
-</p>
+相关文档：
 
-沙拉查词 7 为完全重写的版本。增加了更多细腻的动效与流畅的交互，更快速更稳定更多自定义设置。
-
-## 下载
-
-见[下载页面](https://saladict.crimx.com/download.html)。
-
-## 改动日志
-
-[CHANGELOG.md](./CHANGELOG.md)
+- [当前架构说明](./docs/architecture.md)
+- [MV3 迁移状态](./MV3_MIGRATION.md)
+- [用户意图验收测试](./docs/user-intent-acceptance.md)
+- [贡献指南](./CONTRIBUTING-zh.md)
 
 ## 从源码构建
 
 ```bash
 git clone git@github.com:crimx/ext-saladict.git
 cd ext-saladict
-yarn install
-yarn pdf
+npm install
+cp .env.example .env
+npm run build
 ```
 
-在项目根添加 `.env` 文件，参考 `.env.example` 格式（可留空如果你不需要这些词典）。
+如果你不用带凭据的词典，`.env` 可以保持为空。
 
-```bash
-yarn build
-```
-
-在 `build/` 目录下可查看针对各个浏览器打包好的扩展包。
+构建产物输出到 `dist/chrome-mv3/`。
 
 ## 开发
 
-见[项目贡献指南](./CONTRIBUTING-zh.md)。
+```bash
+npm run dev
+```
 
-## 如何向本项目贡献代码
+## 测试
 
-见[项目贡献指南](./CONTRIBUTING-zh.md)。
+```bash
+npm test
+npm run test:acceptance
+npm run test:e2e
+npm run test:e2e:playwright
+npm run test:required
+```
 
-## 声明
+`npm run test:required` 是面向用户可见改动的合并门槛，包含：
 
-声明：沙拉查词作为自由开源的浏览器辅助插件，仅供学习交流，任何人均可免费获取产品与源码。如果认为你的合法权益收到侵犯请马上联系[作者](https://github.com/crimx)。
+1. 查词 acceptance contract 单测
+2. 用户意图验收测试
+3. Playwright 真实扩展 E2E
 
-沙拉查词项目为 [MIT](https://github.com/crimx/ext-saladict/blob/dev/LICENSE) 许可，你可以随意使用源码，但必须附带该许可与版权声明。请勿用于任何违法犯罪行为，沙拉查词强烈谴责并会尽可能配合追究责任。对于照搬源码二次发布的套壳项目沙拉查词有责任对平台和用户发出相应的举报和提醒。
+## License
 
-## 更多截图
-
-<p align="center">
-  <a href="https://github.com/crimx/ext-saladict/releases/" target="_blank"><img src="https://github.com/crimx/ext-saladict/wiki/images/youdao-page.gif" /></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/crimx/ext-saladict/releases/" target="_blank"><img src="https://github.com/crimx/ext-saladict/wiki/images/screen-notebook.png" /></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/crimx/ext-saladict/releases/" target="_blank"><img src="https://github.com/crimx/ext-saladict/wiki/images/pin.gif" /></a>
-</p>
+[MIT](./LICENSE)

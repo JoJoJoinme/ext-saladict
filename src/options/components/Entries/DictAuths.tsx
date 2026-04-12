@@ -9,6 +9,16 @@ import {
 import { useTranslate, Trans } from '@/_helpers/i18n'
 import { objectKeys } from '@/typings/helpers'
 
+const authModules = import.meta.glob<{ url: string }>(
+  '@/components/dictionaries/*/auth.ts',
+  { eager: true }
+)
+const authUrlMap: Record<string, string> = {}
+for (const [path, mod] of Object.entries(authModules)) {
+  const id = path.match(/dictionaries\/([^/]+)\/auth\.ts$/)?.[1]
+  if (id) authUrlMap[id] = mod.url
+}
+
 export const DictAuths: FC = () => {
   const { t } = useTranslate(['options', 'dicts'])
   const dictAuths = useSelector(state => state.config.dictAuth)
@@ -43,7 +53,7 @@ export const DictAuths: FC = () => {
         help: isLast ? (
           <Trans message={t('dictAuth.dictHelp')}>
             <a
-              href={require(`@/components/dictionaries/${dictID}/auth.ts`).url}
+              href={authUrlMap[dictID] || '#'}
               target="_blank"
               rel="nofollow noopener noreferrer"
             >

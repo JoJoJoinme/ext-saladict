@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useContext, useRef } from 'react'
+import React, { FC, useState, useEffect, useContext, useRef, ComponentType } from 'react'
 import { Helmet } from 'react-helmet'
 import { shallowEqual } from 'react-redux'
 import { Layout, Row, Col, message as antMsg } from 'antd'
@@ -13,9 +13,24 @@ import { HeaderMemo } from './Header'
 import { EntryError } from './EntryError'
 import { BtnPreviewMemo } from './BtnPreview'
 
-const EntryComponent = React.memo(({ entry }: { entry: string }) =>
-  React.createElement(require(`./Entries/${entry}`)[entry])
+const entryModules = import.meta.glob<Record<string, ComponentType>>(
+  ['./Entries/*.tsx', './Entries/*/index.tsx'],
+  { eager: true }
 )
+const entryMap: Record<string, ComponentType> = {}
+for (const [path, mod] of Object.entries(entryModules)) {
+  // Extract entry name from path like ./Entries/General.tsx or ./Entries/Dictionaries/index.tsx
+  const match = path.match(/\.\/Entries\/([^/]+?)(?:\/index)?\.tsx$/)
+  if (match) {
+    const name = match[1]
+    entryMap[name] = mod[name] || mod.default || Object.values(mod)[0]
+  }
+}
+
+const EntryComponent = React.memo(({ entry }: { entry: string }) => {
+  const Comp = entryMap[entry]
+  return Comp ? React.createElement(Comp) : null
+})
 
 export const MainEntry: FC = () => {
   const lang = useContext(I18nContext)

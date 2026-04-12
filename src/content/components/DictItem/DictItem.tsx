@@ -18,6 +18,8 @@ import { ViewPorps } from '@/components/dictionaries/helpers'
 import { DictItemHead, DictItemHeadProps } from './DictItemHead'
 import { DictItemBody, DictItemBodyProps } from './DictItemBody'
 import { isTagName } from '@/_helpers/dom'
+import { getLookupDictState } from '@/content/acceptance/lookup-contract'
+import { getAutoFoldState, DictItemFoldState } from './fold-state'
 
 const DICT_ITEM_HEAD_HEIGHT = 20
 
@@ -47,9 +49,7 @@ export const DictItem: FC<DictItemProps> = props => {
   /** Expand/collapse transition */
   const [noHeightTransition, setNoHeightTransition] = useState(false)
 
-  const [foldState, setFoldState] = useState<'COLLAPSE' | 'HALF' | 'FULL'>(
-    'COLLAPSE'
-  )
+  const [foldState, setFoldState] = useState<DictItemFoldState>('COLLAPSE')
   /** Rendered height */
   const [offsetHeight, setOffsetHeight] = useState(10)
 
@@ -65,14 +65,11 @@ export const DictItem: FC<DictItemProps> = props => {
       ),
     [foldState, offsetHeight, props.preferredHeight]
   )
+  const lookupState = getLookupDictState(props)
 
   useEffect(() => {
-    if (props.searchStatus === 'FINISH') {
-      setFoldState('HALF')
-    } else {
-      setFoldState('COLLAPSE')
-    }
-  }, [props.searchStatus])
+    setFoldState(getAutoFoldState(props.searchStatus, lookupState))
+  }, [props.searchStatus, lookupState])
 
   useEffect(() => {
     props.onHeightChanged(props.dictID, visibleHeight + DICT_ITEM_HEAD_HEIGHT)
@@ -134,6 +131,10 @@ export const DictItem: FC<DictItemProps> = props => {
         isUnfold: foldState !== 'COLLAPSE',
         noHeightTransition
       })}
+      data-testid="lookup-dict-item"
+      data-dict-id={props.dictID}
+      data-lookup-request-state={lookupState}
+      aria-busy={lookupState === 'loading'}
     >
       <DictItemHead
         dictID={props.dictID}
@@ -146,6 +147,7 @@ export const DictItem: FC<DictItemProps> = props => {
       <div
         className="dictItem-Body"
         key={props.dictID}
+        data-testid="lookup-dict-item-body"
         style={{ height: visibleHeight }}
         onClick={searchLinkText}
       >

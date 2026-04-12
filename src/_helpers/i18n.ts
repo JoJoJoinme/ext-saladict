@@ -276,41 +276,50 @@ export const Trans = React.memo<PropsWithChildren<{ message?: string }>>(
   }
 )
 
+const dictLocaleModules = import.meta.glob<any>(
+  '@/components/dictionaries/*/_locales.{json,ts}',
+  { eager: true }
+)
+
 function extractDictLocales(lang: LangCode) {
-  const req = require.context(
-    '@/components/dictionaries',
-    true,
-    /_locales\.(json|ts)$/
+  return Object.entries(dictLocaleModules).reduce<{ [id: string]: DictLocales }>(
+    (o, [filename, localeModule]) => {
+      const json: RawDictLocales =
+        localeModule.locales || localeModule.default || localeModule
+      const dictId = /dictionaries\/([^/]+)\/_locales\.(json|ts)$/.exec(
+        filename
+      )![1]
+      o[dictId] = {
+        name: json.name[lang]
+      }
+      if (json.options) {
+        o[dictId].options = mapValues(json.options, rawLocale => rawLocale[lang])
+      }
+      if (json.helps) {
+        o[dictId].helps = mapValues(json.helps, rawLocale => rawLocale[lang])
+      }
+      return o
+    },
+    {}
   )
-  return req.keys().reduce<{ [id: string]: DictLocales }>((o, filename) => {
-    const localeModule = req(filename)
-    const json: RawDictLocales = localeModule.locales || localeModule
-    const dictId = /([^/]+)\/_locales\.(json|ts)$/.exec(filename)![1]
-    o[dictId] = {
-      name: json.name[lang]
-    }
-    if (json.options) {
-      o[dictId].options = mapValues(json.options, rawLocale => rawLocale[lang])
-    }
-    if (json.helps) {
-      o[dictId].helps = mapValues(json.helps, rawLocale => rawLocale[lang])
-    }
-    return o
-  }, {})
 }
 
+const syncLocaleModules = import.meta.glob<any>(
+  '@/background/sync-manager/services/*/_locales/*.ts',
+  { eager: true }
+)
+
 function extractSyncServiceLocales(lang: LangCode) {
-  const req = require.context(
-    '@/background/sync-manager/services',
-    true,
-    /_locales\/.+\.ts$/
+  return Object.entries(syncLocaleModules).reduce<{ [id: string]: DictLocales }>(
+    (o, [filename, localeModule]) => {
+      const idMatch = new RegExp(`/([^/]+)/_locales/${lang}\\.ts$`).exec(
+        filename
+      )
+      if (idMatch) {
+        o[idMatch[1]] = localeModule.locale || localeModule.default || localeModule
+      }
+      return o
+    },
+    {}
   )
-  return req.keys().reduce<{ [id: string]: DictLocales }>((o, filename) => {
-    const idMatch = new RegExp(`/([^/]+)/_locales/${lang}\\.ts$`).exec(filename)
-    if (idMatch) {
-      const localeModule = req(filename)
-      o[idMatch[1]] = localeModule.locale || localeModule
-    }
-    return o
-  }, {})
 }

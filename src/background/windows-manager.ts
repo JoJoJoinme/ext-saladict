@@ -1,7 +1,7 @@
 import { message, storage } from '@/_helpers/browser-api'
 import { Word } from '@/_helpers/record-manager'
-import { isFirefox } from '@/_helpers/saladict'
 import { getTitlebarOffset } from '@/_helpers/titlebar-offset'
+import { getAppConfig, getScreenInfo } from './state'
 
 interface WinRect {
   width: number
@@ -44,20 +44,6 @@ export class MainWindowsManager {
       })
       if (win.focused && win.type === 'normal' && win.state !== 'minimized') {
         this.snapshot = win
-      } else if (isFirefox) {
-        // Firefox does not support windowTypes in getLastFocused
-        const wins = (await browser.windows.getAll()).filter(
-          win =>
-            win.focused && win.type === 'normal' && win.state !== 'minimized'
-        )
-        if (wins.length === 1) {
-          this.snapshot = wins[0]
-        } else {
-          const focusedWins = wins.filter(win => win.focused)
-          if (focusedWins.length === 1) {
-            this.snapshot = focusedWins[0]
-          }
-        }
       }
     } catch (e) {
       console.warn(e)
@@ -80,8 +66,11 @@ export class MainWindowsManager {
       return
     }
 
+    const appConfig = await getAppConfig()
+    const screen = await getScreenInfo()
+
     const sidebarWidth =
-      (sidebarSnapshot && sidebarSnapshot.width) || window.appConfig.panelWidth
+      (sidebarSnapshot && sidebarSnapshot.width) || appConfig.panelWidth
 
     const updateInfo =
       mainWin.top != null &&
@@ -98,8 +87,8 @@ export class MainWindowsManager {
         : {
             top: 0,
             left: side === 'right' ? 0 : sidebarWidth,
-            width: window.screen.availWidth - sidebarWidth,
-            height: window.screen.availHeight,
+            width: screen.availWidth - sidebarWidth,
+            height: screen.availHeight,
             state: 'normal' as 'normal'
           }
 
@@ -158,6 +147,8 @@ export class QsPanelManager {
     let wordString = ''
     let lastTabString = ''
 
+    const appConfig = await getAppConfig()
+
     if (preload) {
       try {
         wordString = '&word=' + encodeURIComponent(JSON.stringify(preload))
@@ -167,7 +158,7 @@ export class QsPanelManager {
         }
       }
     } else {
-      if (window.appConfig.qsPreload === 'selection') {
+      if (appConfig.qsPreload === 'selection') {
         const tab = (
           await browser.tabs.query({
             active: true,
@@ -182,10 +173,10 @@ export class QsPanelManager {
 
     await this.mainWindowsManager.takeSnapshot()
 
-    const qsPanelRect = window.appConfig.qssaSidebar
-      ? await this.getSidebarRect(window.appConfig.qssaSidebar)
-      : (window.appConfig.qssaRectMemo && (await this.getStorageRect())) ||
-        this.getDefaultRect()
+    const qsPanelRect = appConfig.qssaSidebar
+      ? await this.getSidebarRect(appConfig.qssaSidebar)
+      : (appConfig.qssaRectMemo && (await this.getStorageRect())) ||
+        await this.getDefaultRect()
 
     let qsPanelWin: browser.windows.Window | undefined
 
@@ -194,7 +185,7 @@ export class QsPanelManager {
         ...qsPanelRect,
         type: 'popup',
         url: browser.runtime.getURL(
-          `quick-search.html?sidebar=${window.appConfig.qssaSidebar}${wordString}${lastTabString}`
+          `quick-search.html?sidebar=${appConfig.qssaSidebar}${wordString}${lastTabString}`
         )
       })
     } catch (err) {
@@ -209,22 +200,17 @@ export class QsPanelManager {
     }
 
     if (qsPanelWin && qsPanelWin.id) {
-      if (isFirefox) {
-        // Firefox needs an extra push
-        safeUpdateWindow(qsPanelWin.id, qsPanelRect)
-      }
-
       this.qsPanelId = qsPanelWin.id
 
-      if (window.appConfig.qssaSidebar) {
+      if (appConfig.qssaSidebar) {
         this.isSidebar = true
         await this.mainWindowsManager.makeRoomForSidebar(
-          window.appConfig.qssaSidebar,
+          appConfig.qssaSidebar,
           qsPanelWin
         )
       }
 
-      if (!window.appConfig.qsFocus) {
+      if (!appConfig.qsFocus) {
         await this.mainWindowsManager.focus()
       }
 
@@ -311,7 +297,7 @@ export class QsPanelManager {
     } else if (this.qsPanelId != null) {
       await safeUpdateWindow(this.qsPanelId, {
         focused: true,
-        ...this.getDefaultRect()
+        ...(await this.getDefaultRect())
       })
     }
     this.destroySnapshot()
@@ -339,58 +325,60 @@ export class QsPanelManager {
     this.isSidebar = !this.isSidebar
   }
 
-  getDefaultRect(): WinRect {
-    const { qsLocation, qssaHeight } = window.appConfig
+  async getDefaultRect(): Promise<WinRect> {
+    const appConfig = await getAppConfig()
+    const screen = await getScreenInfo()
+    const { qsLocation, qssaHeight } = appConfig
 
     let qsPanelLeft = 10
     let qsPanelTop = 30
-    const qsPanelWidth = window.appConfig.panelWidth
-    const qsPanelHeight = window.appConfig.qssaHeight
+    const qsPanelWidth = appConfig.panelWidth
+    const qsPanelHeight = appConfig.qssaHeight
 
     switch (qsLocation) {
       case 'CENTER':
-        qsPanelLeft = (window.screen.availWidth - qsPanelWidth) / 2
-        qsPanelTop = (window.screen.availHeight - qssaHeight) / 2
+        qsPanelLeft = (screen.availWidth - qsPanelWidth) / 2
+        qsPanelTop = (screen.availHeight - qssaHeight) / 2
         break
       case 'TOP':
-        qsPanelLeft = (window.screen.availWidth - qsPanelWidth) / 2
+        qsPanelLeft = (screen.availWidth - qsPanelWidth) / 2
         qsPanelTop = 30
         break
       case 'RIGHT':
-        qsPanelLeft = window.screen.availWidth - qsPanelWidth - 30
-        qsPanelTop = (window.screen.availHeight - qssaHeight) / 2
+        qsPanelLeft = screen.availWidth - qsPanelWidth - 30
+        qsPanelTop = (screen.availHeight - qssaHeight) / 2
         break
       case 'BOTTOM':
-        qsPanelLeft = (window.screen.availWidth - qsPanelWidth) / 2
-        qsPanelTop = window.screen.availHeight - qsPanelHeight - 10
+        qsPanelLeft = (screen.availWidth - qsPanelWidth) / 2
+        qsPanelTop = screen.availHeight - qsPanelHeight - 10
         break
       case 'LEFT':
         qsPanelLeft = 10
-        qsPanelTop = (window.screen.availHeight - qssaHeight) / 2
+        qsPanelTop = (screen.availHeight - qssaHeight) / 2
         break
       case 'TOP_LEFT':
         qsPanelLeft = 10
         qsPanelTop = 30
         break
       case 'TOP_RIGHT':
-        qsPanelLeft = window.screen.availWidth - qsPanelWidth - 30
+        qsPanelLeft = screen.availWidth - qsPanelWidth - 30
         qsPanelTop = 30
         break
       case 'BOTTOM_LEFT':
         qsPanelLeft = 10
-        qsPanelTop = window.screen.availHeight - qsPanelHeight - 10
+        qsPanelTop = screen.availHeight - qsPanelHeight - 10
         break
       case 'BOTTOM_RIGHT':
-        qsPanelLeft = window.screen.availWidth - qsPanelWidth - 30
-        qsPanelTop = window.screen.availHeight - qsPanelHeight - 10
+        qsPanelLeft = screen.availWidth - qsPanelWidth - 30
+        qsPanelTop = screen.availHeight - qsPanelHeight - 10
         break
     }
 
     // coords must be integer
     // plus offset of other screen
     return {
-      top: Math.round(qsPanelTop + (window.screen['availTop'] || 0)),
-      left: Math.round(qsPanelLeft + (window.screen['availLeft'] || 0)),
+      top: Math.round(qsPanelTop + (screen.availTop || 0)),
+      left: Math.round(qsPanelLeft + (screen.availLeft || 0)),
       width: Math.round(qsPanelWidth),
       height: Math.round(qsPanelHeight)
     }
@@ -409,8 +397,10 @@ export class QsPanelManager {
   }
 
   async getSidebarRect(side: 'left' | 'right'): Promise<WinRect> {
+    const appConfig = await getAppConfig()
+    const screen = await getScreenInfo()
     const panelWidth =
-      (this.snapshot && this.snapshot.width) || window.appConfig.panelWidth
+      (this.snapshot && this.snapshot.width) || appConfig.panelWidth
     const mainWin = this.mainWindowsManager.snapshot
     return mainWin &&
       mainWin.state === 'normal' &&
@@ -434,10 +424,10 @@ export class QsPanelManager {
       : {
           top: 0,
           left: Math.round(
-            side === 'right' ? window.screen.availWidth - panelWidth : 0
+            side === 'right' ? screen.availWidth - panelWidth : 0
           ),
           width: Math.round(panelWidth),
-          height: Math.round(window.screen.availHeight)
+          height: Math.round(screen.availHeight)
         }
   }
 }

@@ -1,0 +1,705 @@
+[
+  {
+    "id": "lookup-success",
+    "intent": "Selecting a known word shows a non-empty lookup result",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "Example"
+      }
+    ]
+  },
+  {
+    "id": "lookup-empty",
+    "intent": "Selecting an unknown word shows an explicit empty state instead of a blank panel",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-empty",
+        "word": "zzzznotaword",
+        "bingFixture": "bing-empty.html",
+        "expectedPanelState": "empty",
+        "expectedItemState": "empty",
+        "expectedSelection": "zzzznotaword"
+      }
+    ]
+  },
+  {
+    "id": "lookup-network-error",
+    "intent": "Provider failure shows an explicit error state instead of a blank panel",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-error",
+        "word": "offlineword",
+        "bingFixture": null,
+        "expectedPanelState": "error",
+        "expectedItemState": "error",
+        "expectedSelection": "offlineword"
+      }
+    ]
+  },
+  {
+    "id": "lookup-terminal-transitions",
+    "intent": "When the user selects a new word, the panel must replace the previous terminal state instead of showing stale success or stale error",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "Example"
+      },
+      {
+        "action": "lookup",
+        "targetId": "word-empty",
+        "word": "zzzznotaword",
+        "bingFixture": "bing-empty.html",
+        "expectedPanelState": "empty",
+        "expectedItemState": "empty",
+        "expectedSelection": "zzzznotaword"
+      },
+      {
+        "action": "lookup",
+        "targetId": "word-error",
+        "word": "offlineword",
+        "bingFixture": null,
+        "expectedPanelState": "error",
+        "expectedItemState": "error",
+        "expectedSelection": "offlineword"
+      },
+      {
+        "action": "lookup",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "Example"
+      }
+    ]
+  },
+  {
+    "id": "lookup-search-refines-query",
+    "intent": "After opening the panel, the user can type a new query in the search box and get a fresh terminal result",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "Example"
+      },
+      {
+        "action": "search",
+        "query": "zzzznotaword",
+        "bingFixture": "bing-empty.html",
+        "expectedPanelState": "empty",
+        "expectedItemState": "empty",
+        "expectedQueryText": "zzzznotaword"
+      },
+      {
+        "action": "search",
+        "query": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedQueryText": "Example"
+      }
+    ]
+  },
+  {
+    "id": "lookup-close-and-reopen",
+    "intent": "The user can dismiss the panel and then perform another lookup without stale UI being left behind",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "Example"
+      },
+      {
+        "action": "closePanel",
+        "expectedPanelVisible": false,
+        "expectedBowlVisible": false
+      },
+      {
+        "action": "lookup",
+        "targetId": "word-error",
+        "word": "offlineword",
+        "bingFixture": null,
+        "expectedPanelState": "error",
+        "expectedItemState": "error",
+        "expectedSelection": "offlineword"
+      }
+    ]
+  },
+  {
+    "id": "lookup-add-to-notebook",
+    "intent": "After a successful lookup, the user can add the word to notebook and the saved state becomes observable in both UI and storage",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-notebook",
+        "word": "notebookword",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "notebookword",
+        "expectedFavActive": false
+      },
+      {
+        "action": "addToNotebook",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedQueryText": "notebookword",
+        "expectedFavActive": true,
+        "expectedSavedText": "notebookword"
+      }
+    ]
+  },
+  {
+    "id": "lookup-history-navigation",
+    "intent": "After multiple lookups, the user can move backward and forward through lookup history and get the corresponding results",
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedSelection": "Example",
+        "expectedHistoryBackDisabled": true,
+        "expectedHistoryForwardDisabled": true
+      },
+      {
+        "action": "lookup",
+        "targetId": "word-empty",
+        "word": "zzzznotaword",
+        "bingFixture": "bing-empty.html",
+        "expectedPanelState": "empty",
+        "expectedItemState": "empty",
+        "expectedSelection": "zzzznotaword",
+        "expectedHistoryBackDisabled": false,
+        "expectedHistoryForwardDisabled": true
+      },
+      {
+        "action": "historyBack",
+        "query": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedQueryText": "Example",
+        "expectedHistoryBackDisabled": true,
+        "expectedHistoryForwardDisabled": false
+      },
+      {
+        "action": "historyForward",
+        "query": "zzzznotaword",
+        "bingFixture": "bing-empty.html",
+        "expectedPanelState": "empty",
+        "expectedItemState": "empty",
+        "expectedQueryText": "zzzznotaword",
+        "expectedHistoryBackDisabled": false,
+        "expectedHistoryForwardDisabled": true
+      }
+    ]
+  },
+  {
+    "id": "lookup-long-selection-translation",
+    "intent": "Selecting a long sentence should fall back to machine translation instead of ending in a blank or all-empty panel",
+    "runtime": {
+      "selectedDicts": ["google"]
+    },
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "sentence-long",
+        "rangeStartWord": "general",
+        "rangeEndWord": "China",
+        "googleFixture": "google-long-success.json",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedDictId": "google",
+        "expectedSelection": "general secretary of the Communist Party of China"
+      }
+    ]
+  },
+  {
+    "id": "lookup-long-selection-fragment-translation",
+    "intent": "Selecting a long fragment that starts or ends inside a word should still reach a translated terminal state",
+    "runtime": {
+      "selectedDicts": ["google"]
+    },
+    "steps": [
+      {
+        "action": "lookup",
+        "targetId": "sentence-fragment",
+        "rangeStartWord": "general",
+        "rangeStartInset": 8,
+        "rangeEndWord": "Central",
+        "rangeEndFrom": "left",
+        "rangeEndInset": 10,
+        "googleFixture": "google-fragment-success.json",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedDictId": "google",
+        "expectedSelection": "eneral secretary of the Communist Party of China C"
+      }
+    ]
+  },
+  {
+    "id": "quick-search-open-window",
+    "feature": "quick-search",
+    "runner": "e2e",
+    "intent": "The user can open a standalone Quick Search window",
+    "steps": [
+      {
+        "action": "openQuickSearch",
+        "expectedPage": "quick-search.html",
+        "expectedWindowCount": 1
+      }
+    ]
+  },
+  {
+    "id": "quick-search-reuse-window",
+    "feature": "quick-search",
+    "runner": "e2e",
+    "intent": "Triggering Quick Search again reuses or focuses the existing window instead of opening duplicates",
+    "steps": [
+      {
+        "action": "openQuickSearch",
+        "expectedPage": "quick-search.html",
+        "expectedWindowCount": 1
+      },
+      {
+        "action": "openQuickSearch",
+        "expectedPage": "quick-search.html",
+        "expectedWindowCount": 1,
+        "expectedReuse": true
+      }
+    ]
+  },
+  {
+    "id": "quick-search-selection-preload",
+    "feature": "quick-search",
+    "runner": "e2e",
+    "runtime": {
+      "config": {
+        "qsPreload": "selection",
+        "qsAuto": false
+      }
+    },
+    "intent": "Quick Search preloads the current selection when selection preload is enabled",
+    "steps": [
+      {
+        "action": "openQuickSearch",
+        "targetId": "word-success",
+        "word": "Example",
+        "expectedSelection": "Example",
+        "expectedQueryText": "Example",
+        "expectedPage": "quick-search.html",
+        "expectedWindowCount": 1
+      }
+    ]
+  },
+  {
+    "id": "quick-search-selection-auto-search",
+    "feature": "quick-search",
+    "runner": "e2e",
+    "runtime": {
+      "selectedDicts": ["bing"],
+      "config": {
+        "qsPreload": "selection",
+        "qsAuto": true
+      }
+    },
+    "intent": "Quick Search automatically searches preloaded selection and reaches a terminal state",
+    "steps": [
+      {
+        "action": "openQuickSearch",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedSelection": "Example",
+        "expectedQueryText": "Example",
+        "expectedPanelState": "success",
+        "expectedItemState": "success",
+        "expectedPage": "quick-search.html",
+        "expectedWindowCount": 1
+      }
+    ]
+  },
+  {
+    "id": "pdf-open-current-page",
+    "feature": "pdf",
+    "runner": "e2e",
+    "intent": "The user can open the current PDF page in Saladict PDF viewer",
+    "steps": [
+      {
+        "action": "openPdf",
+        "trigger": "currentPage",
+        "sourceUrl": "http://127.0.0.1/pdf/sample.pdf",
+        "expectedPage": "assets/pdf/web/viewer.html",
+        "expectedFileUrl": "http://127.0.0.1/pdf/sample.pdf"
+      }
+    ]
+  },
+  {
+    "id": "pdf-open-link",
+    "feature": "pdf",
+    "runner": "e2e",
+    "intent": "The user can open a PDF link in Saladict PDF viewer",
+    "steps": [
+      {
+        "action": "openPdf",
+        "trigger": "link",
+        "sourceUrl": "http://127.0.0.1/pdf/sample.pdf",
+        "expectedPage": "assets/pdf/web/viewer.html",
+        "expectedFileUrl": "http://127.0.0.1/pdf/sample.pdf"
+      }
+    ]
+  },
+  {
+    "id": "pdf-sniff-redirect",
+    "feature": "pdf",
+    "runner": "e2e",
+    "runtime": {
+      "config": {
+        "pdfSniff": true
+      }
+    },
+    "intent": "When PDF sniff is enabled, opening a PDF page redirects to Saladict PDF viewer",
+    "steps": [
+      {
+        "action": "openPdf",
+        "trigger": "sniff",
+        "sourceUrl": "http://127.0.0.1/pdf/sample.pdf",
+        "expectedPage": "assets/pdf/web/viewer.html",
+        "expectedFileUrl": "http://127.0.0.1/pdf/sample.pdf"
+      }
+    ]
+  },
+  {
+    "id": "trigger-context-menu-lookup",
+    "feature": "trigger-entry-paths",
+    "runner": "e2e",
+    "intent": "The user can trigger lookup through the context menu",
+    "steps": [
+      {
+        "action": "triggerContextMenuAction",
+        "menuItemId": "saladict",
+        "targetId": "word-success",
+        "word": "Example",
+        "bingFixture": "bing-success.html",
+        "expectedSelection": "Example",
+        "expectedPanelState": "success",
+        "expectedItemState": "success"
+      }
+    ]
+  },
+  {
+    "id": "trigger-command-search-clipboard",
+    "feature": "trigger-entry-paths",
+    "runner": "e2e",
+    "intent": "The user can trigger clipboard search through command",
+    "steps": [
+      {
+        "action": "triggerCommand",
+        "command": "search-clipboard",
+        "clipboardText": "Example",
+        "expectedPage": "quick-search.html",
+        "expectedQueryText": "Example"
+      }
+    ]
+  },
+  {
+    "id": "page-popup-renders",
+    "feature": "extension-pages",
+    "runner": "e2e",
+    "intent": "The popup page renders usable UI",
+    "steps": [
+      {
+        "action": "openExtensionPage",
+        "page": "popup.html",
+        "expectedPage": "popup.html",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "page-options-renders",
+    "feature": "extension-pages",
+    "runner": "e2e",
+    "intent": "The options page renders usable UI",
+    "steps": [
+      {
+        "action": "openExtensionPage",
+        "page": "options.html",
+        "expectedPage": "options.html",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "page-history-renders",
+    "feature": "extension-pages",
+    "runner": "e2e",
+    "intent": "The history page renders successfully",
+    "steps": [
+      {
+        "action": "openExtensionPage",
+        "page": "history.html",
+        "expectedPage": "history.html",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "page-notebook-renders",
+    "feature": "extension-pages",
+    "runner": "e2e",
+    "intent": "The notebook page renders successfully",
+    "steps": [
+      {
+        "action": "openExtensionPage",
+        "page": "notebook.html",
+        "expectedPage": "notebook.html",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "page-word-editor-renders",
+    "feature": "extension-pages",
+    "runner": "e2e",
+    "intent": "The word editor page renders successfully",
+    "steps": [
+      {
+        "action": "openExtensionPage",
+        "page": "word-editor.html",
+        "expectedPage": "word-editor.html",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "page-audio-control-renders",
+    "feature": "extension-pages",
+    "runner": "e2e",
+    "intent": "The audio control page renders successfully",
+    "steps": [
+      {
+        "action": "openExtensionPage",
+        "page": "audio-control.html",
+        "expectedPage": "audio-control.html",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "audio-playback-trigger",
+    "feature": "audio",
+    "runner": "e2e",
+    "intent": "The user can trigger audio playback and the system performs an observable playback action",
+    "steps": [
+      {
+        "action": "playAudio",
+        "audioSource": "sample",
+        "expectedPlayback": "started"
+      }
+    ]
+  },
+  {
+    "id": "clipboard-roundtrip",
+    "feature": "clipboard",
+    "runner": "e2e",
+    "intent": "The system can complete clipboard write and read back when permission exists",
+    "steps": [
+      {
+        "action": "clipboardRoundtrip",
+        "inputText": "Example",
+        "expectedClipboardText": "Example"
+      }
+    ]
+  },
+  {
+    "id": "profiles-switch-command",
+    "feature": "profiles-search-modes",
+    "runner": "e2e",
+    "intent": "The user can switch active profile through command",
+    "steps": [
+      {
+        "action": "triggerCommand",
+        "command": "next-profile",
+        "expectedProfileChanged": true
+      }
+    ]
+  },
+  {
+    "id": "options-profiles-entry-renders",
+    "feature": "profiles-search-modes",
+    "runner": "e2e",
+    "intent": "The Profiles options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "Profiles",
+        "expectedEntry": "Profiles",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "options-search-modes-entry-renders",
+    "feature": "profiles-search-modes",
+    "runner": "e2e",
+    "intent": "The SearchModes options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "SearchModes",
+        "expectedEntry": "SearchModes",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "options-dictionaries-entry-renders",
+    "feature": "provider-system",
+    "runner": "e2e",
+    "intent": "The Dictionaries options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "Dictionaries",
+        "expectedEntry": "Dictionaries",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "options-dict-auths-entry-renders",
+    "feature": "provider-system",
+    "runner": "e2e",
+    "intent": "The DictAuths options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "DictAuths",
+        "expectedEntry": "DictAuths",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "page-translate-open-google-command",
+    "feature": "page-translation",
+    "runner": "e2e",
+    "intent": "The user can trigger Google page translation through command",
+    "steps": [
+      {
+        "action": "triggerCommand",
+        "command": "open-google",
+        "expectedPageTranslateProvider": "google"
+      }
+    ]
+  },
+  {
+    "id": "page-translate-youdao-context-menu",
+    "feature": "page-translation",
+    "runner": "e2e",
+    "intent": "The user can trigger Youdao page translation through menu",
+    "steps": [
+      {
+        "action": "triggerContextMenuAction",
+        "menuItemId": "youdao_page_translate",
+        "expectedPageTranslateProvider": "youdao"
+      }
+    ]
+  },
+  {
+    "id": "notebook-sync-config-renders",
+    "feature": "notebook-sync-services",
+    "runner": "e2e",
+    "intent": "The Notebook options entry exposes sync service controls",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "Notebook",
+        "expectedEntry": "Notebook",
+        "expectedRendered": true,
+        "expectedControlGroup": "syncServices"
+      }
+    ]
+  },
+  {
+    "id": "settings-permissions-entry-renders",
+    "feature": "settings-surfaces",
+    "runner": "e2e",
+    "intent": "The Permissions options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "Permissions",
+        "expectedEntry": "Permissions",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "settings-privacy-entry-renders",
+    "feature": "settings-surfaces",
+    "runner": "e2e",
+    "intent": "The Privacy options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "Privacy",
+        "expectedEntry": "Privacy",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "settings-blackwhitelist-entry-renders",
+    "feature": "settings-surfaces",
+    "runner": "e2e",
+    "intent": "The BlackWhiteList options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "BlackWhiteList",
+        "expectedEntry": "BlackWhiteList",
+        "expectedRendered": true
+      }
+    ]
+  },
+  {
+    "id": "settings-importexport-entry-renders",
+    "feature": "settings-surfaces",
+    "runner": "e2e",
+    "intent": "The ImportExport options entry renders successfully",
+    "steps": [
+      {
+        "action": "openOptionsEntry",
+        "entry": "ImportExport",
+        "expectedEntry": "ImportExport",
+        "expectedRendered": true
+      }
+    ]
+  }
+]

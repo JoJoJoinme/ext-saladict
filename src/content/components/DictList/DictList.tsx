@@ -98,7 +98,7 @@ export const DictList: FC<DictListProps> = props => {
   )
 
   return (
-    <div className="dictList">
+    <div className="dictList" data-testid="lookup-dict-list">
       {dicts.map(data => (
         <MemoDictItem
           key={data.dictID}

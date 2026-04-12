@@ -5,9 +5,6 @@ import { timer } from '@/_helpers/promise-more'
 import '@/background/types'
 import { browser } from '../../helper'
 
-window.appConfig = getDefaultConfig()
-window.activeProfile = getDefaultProfile()
-
 window.fetch = jest.fn(() =>
   Promise.resolve({
     ok: true,
@@ -64,6 +61,7 @@ jest.doMock('@/_helpers/browser-api', () => {
 describe('Initialization', () => {
   let initMenus: jest.Mock
   let initPdf: jest.Mock
+  let openUrl: jest.Mock
 
   beforeAll(() => {
     browser.runtime.sendMessage.callsFake(() => Promise.resolve({}))
@@ -76,6 +74,7 @@ describe('Initialization', () => {
 
     const contextMenus = require('@/background/context-menus')
     const pdfSniffer = require('@/background/pdf-sniffer')
+    openUrl = require('@/_helpers/browser-api').openUrl
     initMenus = contextMenus.init
     initPdf = pdfSniffer.init
 
@@ -85,6 +84,7 @@ describe('Initialization', () => {
     browser.storage.local.get.callsFake(() => Promise.resolve({}))
     browser.storage.local.set.callsFake(() => Promise.resolve())
     browser.storage.local.clear.callsFake(() => Promise.resolve())
+    browser.tabs.query.callsFake(() => Promise.resolve([]))
 
     require('@/background/initialization')
   })
@@ -117,6 +117,23 @@ describe('Initialization', () => {
 
       await timer(0)
       expect(checkUpdate).toHaveBeenCalledTimes(0)
+    })
+  })
+
+  describe('onInstalled', () => {
+    it('should only open the internal options page on first install', async () => {
+      browser.runtime.onInstalled.dispatch({
+        reason: 'install'
+      })
+
+      await timer(0)
+      await timer(0)
+
+      expect(openUrl).toHaveBeenCalledTimes(1)
+      expect(openUrl).toHaveBeenCalledWith(
+        'options.html?menuselected=Profiles&nopanel=true',
+        true
+      )
     })
   })
 })

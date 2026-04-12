@@ -1,7 +1,11 @@
 import { message, openUrl } from '@/_helpers/browser-api'
-import { timeout, timer } from '@/_helpers/promise-more'
+import { updateConfig } from '@/_helpers/config-manager'
 import { getSuggests } from '@/_helpers/getSuggests'
 import { injectDictPanel } from '@/_helpers/injectSaladictInternal'
+import {
+  updateActiveProfileID,
+  updateProfile
+} from '@/_helpers/profile-manager'
 import { newWord, Word } from '@/_helpers/record-manager'
 import { Message, MessageResponse } from '@/typings/message'
 import {
@@ -19,14 +23,34 @@ import {
 import { AudioManager } from './audio-manager'
 import { QsPanelManager } from './windows-manager'
 import { getTextFromClipboard, copyTextToClipboard } from './clipboard-manager'
-import './types'
+import {
+  getAppConfig,
+  getActiveProfileState,
+  getProfileIDListState,
+  setAppConfig,
+  setActiveProfile
+} from './state'
 import { DictID } from '@/app-config'
+import { requestOffscreen } from './offscreen-helper'
+import { OffscreenFetchDictPayload } from './offscreen-contract'
+import { prepareDictionaryRuntime } from './dict-runtime'
+import {
+  openPDF,
+  syncPdfSniffer
+} from './pdf-sniffer'
 
 /**
  * background script as transfer station
  */
 export class BackgroundServer {
   private static instance: BackgroundServer
+  private acceptanceMock:
+    | {
+        dictId: DictID
+        query: string
+        state: 'success' | 'empty' | 'error'
+      }
+    | null = null
 
   static getInstance() {
     return (
@@ -109,6 +133,10 @@ export class BackgroundServer {
           return getSuggests(msg.payload)
         case 'YOUDAO_TRANSLATE_AJAX':
           return this.youdaoTranslateAjax(msg.payload)
+        case 'TEST_CONFIGURE_ACCEPTANCE_RUNTIME':
+          return this.configureAcceptanceRuntime(msg.payload)
+        case 'TEST_TRIGGER_COMMAND':
+          return this.triggerTestCommand(msg.payload)
       }
     })
 
@@ -174,12 +202,10 @@ export class BackgroundServer {
     active
   }: Message<'OPEN_DICT_SRC_PAGE'>['payload']): Promise<void> {
     const engine = await BackgroundServer.getDictEngine(id)
+    const appConfig = await getAppConfig()
+    const activeProfile = await getActiveProfileState()
     return openUrl({
-      url: await engine.getSrcPage(
-        text,
-        window.appConfig,
-        window.activeProfile
-      ),
+      url: await engine.getSrcPage(text, appConfig, activeProfile),
       active
     })
   }
@@ -187,52 +213,185 @@ export class BackgroundServer {
   async fetchDictResult(
     data: Message<'FETCH_DICT_RESULT'>['payload']
   ): Promise<MessageResponse<'FETCH_DICT_RESULT'>> {
-    const payload = data.payload || {}
-
-    let response: DictSearchResult<any> | undefined
-
-    try {
-      const { search } = await BackgroundServer.getDictEngine<
-        NonNullable<typeof data['payload']>
-      >(data.id)
-
-      try {
-        response = await timeout(
-          search(data.text, window.appConfig, window.activeProfile, payload),
-          25000
-        )
-      } catch (e) {
-        if (e.message === 'NETWORK_ERROR') {
-          // retry once
-          await timer(500)
-          response = await timeout(
-            search(data.text, window.appConfig, window.activeProfile, payload),
-            25000
-          )
-        } else {
-          throw e
-        }
-      }
-    } catch (e) {
-      if (process.env.DEBUG) {
-        console.warn(data.id, e)
-      }
+    const acceptanceMockResult = this.getAcceptanceMockResult(data)
+    if (acceptanceMockResult) {
+      return acceptanceMockResult
     }
 
-    const result = response
-      ? { ...response, id: data.id }
-      : { result: null, id: data.id }
+    const appConfig = await getAppConfig()
+    const activeProfile = await getActiveProfileState()
 
-    if (process.env.DEBUG) {
-      console.log(`Search Engine ${data.id}`, data.text, result)
+    await prepareDictionaryRuntime(data.id, activeProfile)
+
+    const offscreenPayload: OffscreenFetchDictPayload = {
+      ...data,
+      appConfig,
+      activeProfile
     }
 
-    return result
+    return (
+      (await requestOffscreen('FETCH_DICT_RESULT', offscreenPayload, 70000)) || {
+        id: data.id,
+        result: null,
+        errorType: 'UNKNOWN_ERROR'
+      }
+    )
   }
 
   async callDictEngineMethod(data: Message<'DICT_ENGINE_METHOD'>['payload']) {
-    const engine = await BackgroundServer.getDictEngine(data.id)
-    return engine[data.method](...(data.args || []))
+    return requestOffscreen('DICT_ENGINE_METHOD', data, 30000)
+  }
+
+  async configureAcceptanceRuntime(
+    payload: Message<'TEST_CONFIGURE_ACCEPTANCE_RUNTIME'>['payload']
+  ): Promise<MessageResponse<'TEST_CONFIGURE_ACCEPTANCE_RUNTIME'>> {
+    const currentConfig = await getAppConfig()
+    const currentProfile = await getActiveProfileState()
+
+    const nextConfig = payload.config
+      ? { ...currentConfig, ...payload.config }
+      : currentConfig
+    const nextProfile = {
+      ...currentProfile,
+      stickyFold:
+        payload.stickyFold == null
+          ? currentProfile.stickyFold
+          : payload.stickyFold,
+      waveform:
+        payload.waveform == null ? currentProfile.waveform : payload.waveform,
+      mtaAutoUnfold:
+        payload.mtaAutoUnfold == null
+          ? currentProfile.mtaAutoUnfold
+          : payload.mtaAutoUnfold,
+      dicts: {
+        ...currentProfile.dicts,
+        selected: payload.selectedDicts || currentProfile.dicts.selected
+      }
+    }
+
+    await updateConfig(nextConfig)
+    await updateProfile(nextProfile)
+    setAppConfig(nextConfig)
+    setActiveProfile(nextProfile)
+    syncPdfSniffer(nextConfig)
+    this.acceptanceMock = payload.acceptanceMock || null
+
+    return {
+      selectedDicts: nextProfile.dicts.selected
+    }
+  }
+
+  async triggerTestCommand(
+    payload: Message<'TEST_TRIGGER_COMMAND'>['payload']
+  ): Promise<MessageResponse<'TEST_TRIGGER_COMMAND'>> {
+    switch (payload.command) {
+      case 'search-clipboard': {
+        if (payload.clipboardText != null) {
+          const word = newWord({ text: payload.clipboardText })
+
+          if (await this.qsPanelManager.hasCreated()) {
+            await message.send({
+              type: 'QS_PANEL_SEARCH_TEXT',
+              payload: word
+            })
+          } else {
+            await this.qsPanelManager.create(word)
+          }
+
+          return { ok: true }
+        }
+
+        await this.searchClipboard()
+        return { ok: true }
+      }
+
+      case 'open-pdf':
+        await openPDF(payload.pdfUrl)
+        return { ok: true }
+
+      case 'open-google': {
+        const { ContextMenus } = await import('./context-menus')
+        await ContextMenus.openGoogle()
+        return { ok: true }
+      }
+
+      case 'next-profile': {
+        const activeProfile = await getActiveProfileState()
+        const profileIDList = await getProfileIDListState()
+        const curIndex = profileIDList.findIndex(
+          ({ id }) => id === activeProfile.id
+        )
+
+        if (profileIDList.length <= 0) {
+          return {
+            ok: false,
+            error: 'No profiles available'
+          }
+        }
+
+        const nextIndex =
+          curIndex < 0 ? 0 : (curIndex + 1) % profileIDList.length
+        const nextProfileId = profileIDList[nextIndex].id
+
+        await updateActiveProfileID(nextProfileId)
+        return {
+          ok: true,
+          activeProfileId: nextProfileId
+        }
+      }
+
+      default:
+        return {
+          ok: false,
+          error: `Unsupported test command: ${payload.command}`
+        }
+    }
+  }
+
+  private getAcceptanceMockResult(
+    data: Message<'FETCH_DICT_RESULT'>['payload']
+  ): MessageResponse<'FETCH_DICT_RESULT'> | null {
+    if (
+      !this.acceptanceMock ||
+      this.acceptanceMock.dictId !== data.id ||
+      this.acceptanceMock.query !== data.text
+    ) {
+      return null
+    }
+
+    switch (this.acceptanceMock.state) {
+      case 'success':
+        return {
+          id: data.id,
+          result: {
+            type: 'lex',
+            title: data.text,
+            cdef: [
+              {
+                pos: 'n.',
+                def: `Acceptance fixture for ${data.text}`
+              }
+            ]
+          },
+          audio: {}
+        }
+
+      case 'error':
+        return {
+          id: data.id,
+          result: null,
+          errorType: 'NETWORK_ERROR'
+        }
+
+      case 'empty':
+        return {
+          id: data.id,
+          result: null,
+          errorType: 'NO_RESULT'
+        }
+    }
+
+    return null
   }
 
   notifyWordSaved() {
@@ -249,30 +408,32 @@ export class BackgroundServer {
     })
   }
 
-  /** Bypass http restriction */
-  youdaoTranslateAjax(request: any): Promise<any> {
-    return new Promise(resolve => {
-      const xhr = new XMLHttpRequest()
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState === 4) {
-          const data = xhr.status === 200 ? xhr.responseText : null
-          resolve({
-            response: data,
-            index: request.index
-          })
-        }
+  /** Bypass http restriction — MV3: replaced XMLHttpRequest with fetch() */
+  async youdaoTranslateAjax(request: any): Promise<any> {
+    try {
+      const options: RequestInit = {
+        method: request.type || 'GET'
       }
-      xhr.open(request.type, request.url, true)
 
       if (request.type === 'POST') {
-        xhr.setRequestHeader(
-          'Content-Type',
-          'application/x-www-form-urlencoded'
-        )
-        xhr.send(request.data)
-      } else {
-        xhr.send(null as any)
+        options.headers = {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        options.body = request.data
       }
-    })
+
+      const res = await fetch(request.url, options)
+      const data = res.ok ? await res.text() : null
+
+      return {
+        response: data,
+        index: request.index
+      }
+    } catch {
+      return {
+        response: null,
+        index: request.index
+      }
+    }
   }
 }

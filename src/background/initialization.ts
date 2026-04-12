@@ -5,7 +5,6 @@ import { checkUpdate } from '@/_helpers/check-update'
 import { updateConfig, initConfig } from '@/_helpers/config-manager'
 import { initProfiles, updateActiveProfileID } from '@/_helpers/profile-manager'
 import { injectDictPanel } from '@/_helpers/injectSaladictInternal'
-import { isFirefox } from '@/_helpers/saladict'
 import { timer } from '@/_helpers/promise-more'
 import {
   getTitlebarOffset,
@@ -16,7 +15,13 @@ import { reportEvent } from '@/_helpers/analytics'
 import { ContextMenus } from './context-menus'
 import { BackgroundServer } from './server'
 import { openPDF } from './pdf-sniffer'
-import './types'
+import {
+  getAppConfig,
+  setAppConfig,
+  setActiveProfile,
+  getActiveProfileState,
+  getProfileIDListState
+} from './state'
 
 browser.runtime.onInstalled.addListener(onInstalled)
 browser.runtime.onStartup.addListener(onStartup)
@@ -35,46 +40,47 @@ if (browser.notifications) {
 browser.commands.onCommand.addListener(onCommand)
 
 const getText = decodeURI
+let stopStartupTabRecovery: (() => void) | undefined
 
-function onCommand(command: string) {
+async function onCommand(command: string) {
+  const appConfig = await getAppConfig()
+
   switch (command) {
     case 'toggle-active':
       updateConfig({
-        ...window.appConfig,
-        active: !window.appConfig.active
+        ...appConfig,
+        active: !appConfig.active
       })
       break
     case 'toggle-instant':
-      browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+      browser.tabs.query({ active: true, currentWindow: true }).then(async tabs => {
         if (tabs.length <= 0 || tabs[0].id == null) {
           return
         }
-        message
+        const isPinned = await message
           .send<'QUERY_PIN_STATE', boolean>(tabs[0].id, {
             type: 'QUERY_PIN_STATE'
           })
-          .then(isPinned => {
-            const config = window.appConfig
-            const { enable } = config[isPinned ? 'pinMode' : 'mode'].instant
+        const config = await getAppConfig()
+        const { enable } = config[isPinned ? 'pinMode' : 'mode'].instant
 
-            updateConfig({
-              ...config,
-              mode: {
-                ...config.mode,
-                instant: {
-                  ...config.mode.instant,
-                  enable: !enable
-                }
-              },
-              pinMode: {
-                ...config.pinMode,
-                instant: {
-                  ...config.pinMode.instant,
-                  enable: !enable
-                }
-              }
-            })
-          })
+        updateConfig({
+          ...config,
+          mode: {
+            ...config.mode,
+            instant: {
+              ...config.mode.instant,
+              enable: !enable
+            }
+          },
+          pinMode: {
+            ...config.pinMode,
+            instant: {
+              ...config.pinMode.instant,
+              enable: !enable
+            }
+          }
+        })
       })
       break
     case 'open-quick-search':
@@ -142,15 +148,17 @@ function onCommand(command: string) {
     case 'next-profile':
     case 'prev-profile':
       {
-        const curID = window.activeProfile.id
-        const curIndex = window.profileIDList.findIndex(
+        const activeProfile = await getActiveProfileState()
+        const profileIDList = await getProfileIDListState()
+        const curID = activeProfile.id
+        const curIndex = profileIDList.findIndex(
           ({ id }) => id === curID
         )
         const offset = command === 'next-profile' ? 1 : -1
         const nextIndex =
-          curIndex < 0 ? 0 : (curIndex + offset) % window.profileIDList.length
+          curIndex < 0 ? 0 : (curIndex + offset) % profileIDList.length
 
-        updateActiveProfileID(window.profileIDList[nextIndex].id).then(
+        updateActiveProfileID(profileIDList[nextIndex].id).then(
           searchTextBox
         )
       }
@@ -161,12 +169,14 @@ function onCommand(command: string) {
     case 'profile-4':
     case 'profile-5':
       {
+        const activeProfile = await getActiveProfileState()
+        const profileIDList = await getProfileIDListState()
         const index = +command.slice(-1)
         if (
-          index < window.profileIDList.length &&
-          window.profileIDList[index].id !== window.activeProfile.id
+          index < profileIDList.length &&
+          profileIDList[index].id !== activeProfile.id
         ) {
-          updateActiveProfileID(window.profileIDList[index].id).then(
+          updateActiveProfileID(profileIDList[index].id).then(
             searchTextBox
           )
         }
@@ -185,8 +195,10 @@ async function onInstalled({
   reason: string
   previousVersion?: string
 }) {
-  window.appConfig = await initConfig()
-  window.activeProfile = await initProfiles()
+  setAppConfig(await initConfig())
+  setActiveProfile(await initProfiles())
+
+  const appConfig = await getAppConfig()
 
   await storage.local.set(
     mapValues(await storage.local.get(null), (value, key) => {
@@ -200,45 +212,36 @@ async function onInstalled({
     if (
       !(await storage.sync.get('hasInstructionsShown')).hasInstructionsShown
     ) {
-      openUrl('options.html?menuselected=Privacy&nopanel=true', true)
-      if (window.appConfig.langCode.startsWith('zh')) {
-        openUrl('https://saladict.crimx.com/notice.html')
-      } else {
-        openUrl('https://saladict.crimx.com/en/notice.html')
-      }
+      openUrl('options.html?menuselected=Profiles&nopanel=true', true)
       storage.sync.set({ hasInstructionsShown: true })
     }
   } else if (reason === 'update') {
     if (!process.env.DEBUG) {
-      const curr = await checkUpdate(browser.runtime.getManifest().version)
+      const curr = await checkUpdate(browser.runtime.getManifest().version, undefined, appConfig.langCode)
       // same version as server
       if (curr.data && curr.diff === 0) {
-        const { diff, data } = await checkUpdate(previousVersion, curr.data)
+        const { diff, data } = await checkUpdate(previousVersion, curr.data, appConfig.langCode)
         if (data && diff >= 2) {
-          setTimeout(() => {
-            const isZh = window.appConfig.langCode.startsWith('zh')
-            const options = {
-              type: 'basic',
-              iconUrl: browser.runtime.getURL(`assets/icon-128.png`),
-              title: isZh
-                ? `沙拉查词已更新到 ${data.version}`
-                : `Saladict has updated to ${data.version}`,
-              message: data.data
-                .map((line, i) => `${i + 1}. ${line}`)
-                .join('\n'),
-              priority: 2,
-              eventTime: Date.now() + 5000
-            } as any
+          const isZh = appConfig.langCode.startsWith('zh')
+          const options = {
+            type: 'basic',
+            iconUrl: browser.runtime.getURL(`assets/icon-128.png`),
+            title: isZh
+              ? `沙拉查词已更新到 ${data.version}`
+              : `Saladict has updated to ${data.version}`,
+            message: data.data
+              .map((line, i) => `${i + 1}. ${line}`)
+              .join('\n'),
+            priority: 2,
+            eventTime: Date.now()
+          } as any
 
-            if (!isFirefox) {
-              options.buttons = [{ title: isZh ? '查看更新介绍' : 'More Info' }]
-              options.silent = true
-            }
+          options.buttons = [{ title: isZh ? '查看更新介绍' : 'More Info' }]
+          options.silent = true
 
-            if (browser.notifications) {
-              browser.notifications.create('sd-install', options)
-            }
-          }, 5000)
+          if (browser.notifications) {
+            browser.notifications.create('sd-install', options)
+          }
         }
       }
     }
@@ -246,94 +249,87 @@ async function onInstalled({
 
   loadDictPanelToAllTabs()
 
-  // firefox users may want to calibrate manually
-  if (!isFirefox && !(await getTitlebarOffset())) {
-    const offset = await calibrateTitlebarOffset()
-    if (offset) {
-      setTitlebarOffset(offset)
-    }
+  const offset = await calibrateTitlebarOffset()
+  if (offset) {
+    setTitlebarOffset(offset)
   }
 }
 
 function onStartup(): void {
-  setTimeout(() => {
-    // wait for appConfig being loaded
-    if (!process.env.DEBUG && window.appConfig.updateCheck) {
-      storage.local
-        .get<{ lastCheckUpdate: number }>('lastCheckUpdate')
-        .then(async ({ lastCheckUpdate }) => {
-          const today = Date.now()
-          if (!lastCheckUpdate) {
-            storage.local.set({ lastCheckUpdate: today })
-          } else if (today - lastCheckUpdate > 7 * 24 * 60 * 60 * 1000) {
-            storage.local.set({ lastCheckUpdate: today })
-            const { data, diff } = await checkUpdate(
-              browser.runtime.getManifest().version
-            )
-            if (data && diff > 0) {
-              const options: browser.notifications.CreateNotificationOptions = {
-                type: 'basic',
-                iconUrl: browser.runtime.getURL(`assets/icon-128.png`),
-                title: getText('%E6%B2%99%E6%8B%89%E6%9F%A5%E8%AF%8D'),
-                message: `${getText('%E5%8F%AF%E6%9B%B4%E6%96%B0%E8%87%B3')}【${
-                  data.version
-                }】`
-              }
-              if (!isFirefox) {
-                options.buttons = [
-                  { title: getText('%E6%9F%A5%E7%9C%8B%E6%9B%B4%E6%96%B0') }
-                ]
-              }
-              if (browser.notifications) {
-                browser.notifications.create('sd-update', options)
-              }
-            }
-          }
-        })
-    }
-  }, 1000)
+  void runStartupTasks()
+}
 
-  if (!process.env.DEBUG && isExtTainted) {
-    storage.local.get<{ swat: number }>('swat').then(({ swat }) => {
-      const today = Date.now()
-      if (!swat) {
-        storage.local.set({ swat: today })
-      } else if (today - swat > 10 * 24 * 60 * 60 * 1000) {
-        storage.local.set({ swat: today })
+async function runStartupTasks(): Promise<void> {
+  const appConfig = await getAppConfig()
+
+  if (!process.env.DEBUG && appConfig.updateCheck) {
+    const { lastCheckUpdate } = await storage.local.get<{
+      lastCheckUpdate: number
+    }>('lastCheckUpdate')
+    const today = Date.now()
+
+    if (!lastCheckUpdate) {
+      await storage.local.set({ lastCheckUpdate: today })
+    } else if (today - lastCheckUpdate > 7 * 24 * 60 * 60 * 1000) {
+      await storage.local.set({ lastCheckUpdate: today })
+      const { data, diff } = await checkUpdate(
+        browser.runtime.getManifest().version,
+        undefined,
+        appConfig.langCode
+      )
+      if (data && diff > 0) {
         const options: browser.notifications.CreateNotificationOptions = {
           type: 'basic',
           iconUrl: browser.runtime.getURL(`assets/icon-128.png`),
           title: getText('%E6%B2%99%E6%8B%89%E6%9F%A5%E8%AF%8D'),
-          message: getText(
-            '%E6%AD%A4%E3%80%8C%E6%B2%99%E6%8B%89%E6%9F%A5%E8%' +
-              'AF%8D%E3%80%8D%E6%89%A9%E5%B1%95%E5%B7%B2%E8%A2' +
-              '%AB%E4%BA%8C%E6%AC%A1%E6%89%93%E5%8C%85%EF%BC%8' +
-              'C%E8%AF%B7%E5%9C%A8%E5%AE%98%E6%96%B9%E5%BB%BA%' +
-              'E8%AE%AE%E7%9A%84%E5%B9%B3%E5%8F%B0%E5%AE%89%E8' +
-              '%A3%85%E3%80%82'
-          )
+          message: `${getText('%E5%8F%AF%E6%9B%B4%E6%96%B0%E8%87%B3')}【${
+            data.version
+          }】`
         }
-        if (!isFirefox) {
-          options.buttons = [
-            {
-              title: getText(
-                '%E6%9F%A5%E7%9C%8B%E5%8F%AF%E9%9D%A0%E7%9A%84%E5%B9%B3%E5%8F%B0'
-              )
-            }
-          ]
-        }
+        options.buttons = [
+          { title: getText('%E6%9F%A5%E7%9C%8B%E6%9B%B4%E6%96%B0') }
+        ]
         if (browser.notifications) {
           browser.notifications.create('sd-update', options)
         }
       }
-    })
+    }
   }
 
-  // Chrome fails to inject css via manifest if the page is loaded
-  // as "last opened tabs" when browser opens.
-  setTimeout(() => {
-    loadDictPanelToAllTabs()
-  }, 1000)
+  if (!process.env.DEBUG && isExtTainted) {
+    const { swat } = await storage.local.get<{ swat: number }>('swat')
+    const today = Date.now()
+    if (!swat) {
+      await storage.local.set({ swat: today })
+    } else if (today - swat > 10 * 24 * 60 * 60 * 1000) {
+      await storage.local.set({ swat: today })
+      const options: browser.notifications.CreateNotificationOptions = {
+        type: 'basic',
+        iconUrl: browser.runtime.getURL(`assets/icon-128.png`),
+        title: getText('%E6%B2%99%E6%8B%89%E6%9F%A5%E8%AF%8D'),
+        message: getText(
+          '%E6%AD%A4%E3%80%8C%E6%B2%99%E6%8B%89%E6%9F%A5%E8%' +
+            'AF%8D%E3%80%8D%E6%89%A9%E5%B1%95%E5%B7%B2%E8%A2' +
+            '%AB%E4%BA%8C%E6%AC%A1%E6%89%93%E5%8C%85%EF%BC%8' +
+            'C%E8%AF%B7%E5%9C%A8%E5%AE%98%E6%96%B9%E5%BB%BA%' +
+            'E8%AE%AE%E7%9A%84%E5%B9%B3%E5%8F%B0%E5%AE%89%E8' +
+            '%A3%85%E3%80%82'
+        )
+      }
+      options.buttons = [
+        {
+          title: getText(
+            '%E6%9F%A5%E7%9C%8B%E5%8F%AF%E9%9D%A0%E7%9A%84%E5%B9%B3%E5%8F%B0'
+          )
+        }
+      ]
+      if (browser.notifications) {
+        browser.notifications.create('sd-update', options)
+      }
+    }
+  }
+
+  await restoreDictPanelInOpenTabs()
 }
 
 function genClickListener(url: string) {
@@ -357,13 +353,83 @@ function genClickListener(url: string) {
 async function loadDictPanelToAllTabs() {
   ;(await browser.tabs.query({})).forEach(async tab => {
     if (tab.id && tab.url && tab.url.startsWith('http')) {
-      try {
-        await injectDictPanel(tab)
-      } catch (e) {
-        console.warn(e)
-      }
+      await injectDictPanelSafely(tab)
     }
   })
+}
+
+async function restoreDictPanelInOpenTabs() {
+  stopStartupTabRecovery?.()
+  stopStartupTabRecovery = undefined
+
+  const pendingTabs = new Set<number>()
+  const tabs = await browser.tabs.query({})
+
+  for (const tab of tabs) {
+    if (!tab.id || !tab.url || !tab.url.startsWith('http')) {
+      continue
+    }
+
+    if (tab.status === 'complete') {
+      await injectDictPanelSafely(tab)
+    } else {
+      pendingTabs.add(tab.id)
+    }
+  }
+
+  if (pendingTabs.size <= 0) {
+    return
+  }
+
+  const cleanup = () => {
+    browser.tabs.onUpdated.removeListener(handleUpdated)
+    browser.tabs.onRemoved.removeListener(handleRemoved)
+    stopStartupTabRecovery = undefined
+  }
+
+  const handleUpdated = async (
+    tabId: number,
+    changeInfo: browser.tabs._OnUpdatedChangeInfo,
+    tab: browser.tabs.Tab
+  ) => {
+    if (
+      !pendingTabs.has(tabId) ||
+      changeInfo.status !== 'complete' ||
+      !tab.url ||
+      !tab.url.startsWith('http')
+    ) {
+      return
+    }
+
+    pendingTabs.delete(tabId)
+    await injectDictPanelSafely(tab)
+
+    if (pendingTabs.size <= 0) {
+      cleanup()
+    }
+  }
+
+  const handleRemoved = (tabId: number) => {
+    if (!pendingTabs.delete(tabId)) {
+      return
+    }
+
+    if (pendingTabs.size <= 0) {
+      cleanup()
+    }
+  }
+
+  stopStartupTabRecovery = cleanup
+  browser.tabs.onUpdated.addListener(handleUpdated)
+  browser.tabs.onRemoved.addListener(handleRemoved)
+}
+
+async function injectDictPanelSafely(tab: browser.tabs.Tab) {
+  try {
+    await injectDictPanel(tab)
+  } catch (e) {
+    console.warn(e)
+  }
 }
 
 /** Search text box text on active tab */

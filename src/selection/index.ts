@@ -10,12 +10,18 @@ import { isInDictPanel } from '@/_helpers/saladict'
 
 import { share, map, switchMap } from 'rxjs/operators'
 
-import { postMessageHandler, sendMessage, sendEmptyMessage } from './message'
+import {
+  postMessageHandler,
+  sendMessage,
+  sendEmptyMessage,
+  sendSelfPageMessage
+} from './message'
 import {
   isEscapeKey,
   whenKeyPressed,
   isBlacklisted,
-  newSelectionWord
+  newSelectionWord,
+  newSelectionWordLocal
 } from './helper'
 import { createIntantCaptureStream } from './instant-capture'
 import { createQuickSearchStream } from './quick-search'
@@ -37,10 +43,12 @@ if (!window.__SALADICT_SELECTION_LOADED__) {
   message.addListener('PRELOAD_SELECTION', () => {
     const text = getText()
     if (text) {
-      return newSelectionWord({
-        text,
-        context: getSentence()
-      })
+      return Promise.resolve(
+        newSelectionWordLocal({
+          text,
+          context: getSentence()
+        })
+      )
     }
   })
 
@@ -81,11 +89,11 @@ if (!window.__SALADICT_SELECTION_LOADED__) {
    * Escape key pressed
    */
   whenKeyPressed(isEscapeKey).subscribe(() =>
-    message.self.send({ type: 'ESCAPE_KEY' })
+    sendSelfPageMessage({ type: 'ESCAPE_KEY' })
   )
 
   config$$.pipe(switchMap(createQuickSearchStream)).subscribe(() => {
-    message.self.send({ type: 'TRIPLE_CTRL' })
+    sendSelfPageMessage({ type: 'TRIPLE_CTRL' })
   })
 
   config$$.pipe(switchMap(createSelectTextStream)).subscribe(async result => {

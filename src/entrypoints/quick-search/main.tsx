@@ -1,0 +1,1 @@
+import '@/quick-search/index'

@@ -1,92 +1,65 @@
 # Contributing to Saladict
 
-:+1::tada: First off, thanks for taking the time to contribute! :tada::+1:
+## Read First
 
-## How to Contribute
+- [Current architecture](./docs/architecture.md)
+- [MV3 migration status](./MV3_MIGRATION.md)
+- [User-intent acceptance tests](./docs/user-intent-acceptance.md)
 
-:warning: Unless it is a small hot fix, before you write any code and get your hands dirty, please open an issue or make a WIP pull request to elaborate what you are trying to do and how you are going to implement it. Just to make sure we are on the same page and nobody's time and effort are wasted.
-
-- Read [How to get started](#how-to-get-started).
-- Follow [code style](#code-style) and [commit style](#commit-style).
-- Before submit, run [test](#testing) and [build](#building) locally. Or leave it to CI.
-
-## How to get started
+## Setup
 
 ```bash
 git clone git@github.com:crimx/ext-saladict.git
 cd ext-saladict
-yarn install
-yarn pdf
+npm install
+cp .env.example .env
 ```
 
-Add a `.env` file following the `.env.example` format(leave empty if you don't use these dictionaries).
+If you do not use dictionary credentials, `.env` can stay empty.
 
-## UI Tweaking
+## Daily Commands
 
-Run `yarn fixtures` to download fixtures(only need to run once).
+```bash
+npm run dev
+npm run build
+npm test
+npm run test:acceptance
+npm run test:e2e
+npm run test:e2e:playwright
+npm run test:required
+```
 
-Run `yarn storybook` to view all the components.
+## Required Gate
 
-Run `yarn start --wextentry [entry id]` to view a certain entry with WDS in a fake WebExtension environment.
+For any user-visible change:
 
-## Testing
+1. Identify the affected user journey.
+2. Update [`test/acceptance/spec.json`](./test/acceptance/spec.json) if coverage does not already exist.
+3. Keep the acceptance contract stable unless the contract itself is intentionally changing.
+4. Run `npm run test:required`.
 
-Run `yarn test` to run Jest. Supports all the Jest [options](https://jestjs.io/docs/en/cli).
+If the change touches shared infrastructure, background logic, sync, or dictionary engines, also run:
 
-## Building
+```bash
+npm test
+```
 
-Run `yarn build` to start a full build.
+## MV3 Guardrails
 
-Toggle:
+- Background logic runs in a service worker. Do not introduce new `window.*` state there. Use [`src/background/state.ts`](./src/background/state.ts).
+- DOM work is not allowed in the background. Route it through [`src/background/offscreen-helper.ts`](./src/background/offscreen-helper.ts).
+- New extension pages must be added under [`src/entrypoints/`](./src/entrypoints/) using `name/index.html` and `name/main.tsx`.
+- Permission or manifest changes must be made in [`wxt.config.ts`](./wxt.config.ts) and covered by E2E tests.
+- Do not remove acceptance contract attributes such as `lookup-panel` or `data-lookup-terminal` without updating the tests and docs together.
 
-- `--debug`: Remove compression and generate sourcemaps.
-- `--analyze`: Show detailed Webpack bundle analyzer.
+## Adding a Dictionary
 
-## How to add a dictionary
-
-For safety and maintainability reason, Saladict will not support adding dictionaries on the fly. All dictionaries must be merged to this project via pull requests.
-
-If dictionary implementation makes use of private API please move it to an independent project, release on NPM, then import it to Saladict.
-
-1. Create a directory at [`src/components/dictionaries/`](./src/components/dictionaries/), with the name of the dict ID.
-   1. Use any existing dictionary as guidance, e.g. [Bing](./src/components/dictionaries/bing). Copy files to the new directory.
-   1. Replace the favicon with a new LOGO.
-   1. Edit `config.ts` to change default options. See the `DictItem` type and explanation for more details. Register the dictionary in [app config](./src/app-config/dicts.ts) so that TypeScript generates the correct typings. Dict ID **MUST** follow alphabetical order.
-   1. Update `_locales.json` with the new dictionary name. Add locales for options, if any.
-   1. `engine.ts` **MUST** export at least two functions:
-      1. `getSrcPage` function which is responsible for generating source page url base on search text and app config. Source page url is opened when user clicks the dictionary title.
-      1. `search` function which is responsible for fetching, parsing and returning dictionary results. See the typings for more detail.
-         - Extracting information from a webpage **MUST** use helper functions in [../helpers.ts](./components/dictionaries/helpers.ts) for data cleansing.
-         - If the dictionary supports pronunciation:
-           1. Register the ID at [`config.autopron`](https://github.com/crimx/ext-saladict/blob/a88cfed84129418b65914351ca14b86d7b1b758b/src/app-config/index.ts#L202-L223).
-           1. Include an [`audio`](https://github.com/crimx/ext-saladict/blob/a88cfed84129418b65914351ca14b86d7b1b758b/src/typings/server.ts#L5-L9) field in the object which search engine returns.
-      1. Other exported functions can be called from `View.tsx` via `'DICT_ENGINE_METHOD'` message channel. See `src/typings/message` for typing details and search `DICT_ENGINE_METHOD` project-wise for examples. Messages **MUST** be sent via `message` from `'@/_helpers/browser-api'` instead of the native `sendMessage` function.
-   1. Search result will ultimately be passed to a React PureComponent in `View.tsx`, which **SHOULD** be a dumb component that renders the result accordingly.
-   1. Selectors in `_style.scss` **SHOULD** follow [ECSS](http://ecss.io/chapter5.html#anatomy-of-the-ecss-naming-convention)-ish naming convention.
-
-### Develop the dictionary UI live
-
-To develop the component in Storybook we need to intercept http requests from dictionary engines and replace with the downloaded results.
-
-1. Add `fixtures.js` at `test/specs/components/dictionaries/[dictID]`.
-   - See other dictionaries for example.
-   - You can offer url or axios config (See `mojidict` dictionary). All results from previous requests will be passed to the next request as array.
-1. Run `yarn fixtures` to download fixtures.
-1. Edit `test/specs/components/dictionaries/[dictID]/request.mock.ts`. It will intercept requests and return the downloaded fixtures.
-1. Run `yarn storybook`.
-
-### Add Testing
-
-1. Add `[dictID]/engine.spec.ts` to test the engine.
-
-## Code Style
-
-This project follows the TypeScript variation of [Standard](https://standardjs.com) JavaScript code style.
-
-If you are using IDEs like VSCode, make sure *eslint* and *prettier* plugins are installed. Or you can just run [building command](#building) to perform a TypeScript full check.
+1. Add the dictionary under [`src/components/dictionaries/`](./src/components/dictionaries/).
+2. Register it in app config and locales.
+3. Implement `getSrcPage` and `search`.
+4. Add parser/engine tests under [`test/specs/components/dictionaries/`](./test/specs/components/dictionaries/).
+5. If the user journey changes, add or update acceptance scenarios as well.
 
 ## Commit Style
 
-This project follows [conventional](https://conventionalcommits.org/) commit style.
-
-You can run `yarn commit` and follow the instructions, or use [VSCode Conventional Commits](https://github.com/vivaxy/vscode-conventional-commits) extension in VSCode.
+Use conventional commits. `npm run commit` is available if you want the interactive helper.

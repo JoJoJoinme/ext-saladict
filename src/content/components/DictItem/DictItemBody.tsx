@@ -5,11 +5,16 @@ import { Observable } from 'rxjs'
 import { DictID } from '@/app-config'
 import { Word } from '@/_helpers/record-manager'
 import { SALADICT_PANEL } from '@/_helpers/saladict'
+import { useTranslate } from '@/_helpers/i18n'
 import { ViewPorps } from '@/components/dictionaries/helpers'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { StaticSpeakerContainer } from '@/components/Speaker'
-
-const dictContentStyles = require('./DictItemContent.shadow.scss').toString()
+import { LookupErrorType } from '@/components/dictionaries/helpers'
+import {
+  getLookupDictState,
+  hasRenderableLookupResult
+} from '@/content/acceptance/lookup-contract'
+import dictContentStyles from './DictItemContent.shadow.scss?inline'
 
 export interface DictItemBodyProps {
   dictID: DictID
@@ -21,6 +26,7 @@ export interface DictItemBodyProps {
 
   searchStatus: 'IDLE' | 'SEARCHING' | 'FINISH'
   searchResult?: object | null
+  searchError?: LookupErrorType | null
 
   catalogSelect$: Observable<{ key: string; value: string }>
 
@@ -38,6 +44,8 @@ export interface DictItemBodyProps {
 }
 
 export const DictItemBody: FC<DictItemBodyProps> = props => {
+  const { t } = useTranslate('content')
+  const lookupState = getLookupDictState(props)
   const Dict = useMemo(
     () =>
       React.lazy<ComponentType<ViewPorps<any>>>(() =>
@@ -56,12 +64,15 @@ export const DictItemBody: FC<DictItemBodyProps> = props => {
         const styleModule = await import(
           /* webpackInclude: /_style\.shadow\.scss$/ */
           /* webpackMode: "lazy" */
-          `@/components/dictionaries/${props.dictID}/_style.shadow.scss`
+          `@/components/dictionaries/${props.dictID}/_style.shadow.scss?inline`
         )
+        const styleText =
+          typeof styleModule.default === 'string'
+            ? styleModule.default
+            : String(styleModule.default || '')
+
         return {
-          default: () => (
-            <style>{(styleModule.default || styleModule).toString()}</style>
-          )
+          default: () => <style>{styleText}</style>
         }
       }),
     [props.dictID]
@@ -70,10 +81,14 @@ export const DictItemBody: FC<DictItemBodyProps> = props => {
   return (
     <ErrorBoundary error={DictRenderError}>
       <Suspense fallback={null}>
-        {props.searchStatus === 'FINISH' && props.searchResult && (
+        {props.searchStatus === 'FINISH' &&
+          (lookupState === 'success' &&
+          hasRenderableLookupResult(props.searchResult) ? (
           <root.div>
             <div
               ref={props.dictRootRef}
+              data-testid="lookup-dict-result"
+              data-lookup-state="success"
               className={classNames({ darkMode: props.darkMode })}
             >
               <style>{dictContentStyles}</style>
@@ -97,16 +112,38 @@ export const DictItemBody: FC<DictItemBodyProps> = props => {
               </StaticSpeakerContainer>
             </div>
           </root.div>
-        )}
+          ) : lookupState === 'error' ? (
+            <p
+              className="dictItem-ErrorState"
+              data-testid="lookup-dict-error"
+              data-lookup-state="error"
+            >
+              {t('lookupError')}
+            </p>
+          ) : (
+            <p
+              className="dictItem-EmptyState"
+              data-testid="lookup-dict-empty"
+              data-lookup-state="empty"
+            >
+              {t('noResult')}
+            </p>
+          ))}
       </Suspense>
     </ErrorBoundary>
   )
 }
 
 function DictRenderError() {
+  const { t } = useTranslate('content')
   return (
-    <p style={{ textAlign: 'center' }}>
-      Render error. Please{' '}
+    <p
+      className="dictItem-ErrorState"
+      data-testid="lookup-dict-error"
+      data-lookup-state="error"
+      style={{ textAlign: 'center' }}
+    >
+      {t('renderError')}{' '}
       <a
         href="https://github.com/crimx/ext-saladict/issues"
         target="_blank"

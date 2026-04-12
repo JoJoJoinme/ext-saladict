@@ -2,6 +2,9 @@ import { locale as _locale } from '../zh-CN/content'
 
 export const locale: typeof _locale = {
   chooseLang: '-選擇其它語言-',
+  noResult: '未找到結果',
+  lookupError: '查詢失敗，請稍後重試',
+  renderError: '渲染失敗，請回報問題',
   standalone: '沙拉查詞-獨立查詞視窗',
   fetchLangList: '取得全部語言清單',
   transContext: '重新翻譯',

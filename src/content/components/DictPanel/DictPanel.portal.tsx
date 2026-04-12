@@ -5,6 +5,7 @@ import { useRefFn } from 'observable-hooks'
 import { SALADICT_PANEL } from '@/_helpers/saladict'
 import { ShadowPortal, defaultTimeout } from '@/components/ShadowPortal'
 import { DictPanel, DictPanelProps } from './DictPanel'
+import dictPanelStyles from './DictPanel.shadow.scss?inline'
 
 export interface DictPanelPortalProps extends DictPanelProps {
   show: boolean
@@ -25,7 +26,7 @@ export const DictPanelPortal: FC<DictPanelPortalProps> = props => {
   const [show, setShow] = useState(showProps)
 
   const panelStyle = useRefFn(() => (
-    <style>{require('./DictPanel.shadow.scss').toString()}</style>
+    <style>{dictPanelStyles}</style>
   )).current
 
   useUpdateEffect(() => {

@@ -1,246 +1,199 @@
-import { getDefaultConfig, AppConfig, AppConfigMutable } from '@/app-config'
-import sinon from 'sinon'
-import { take } from 'rxjs/operators'
-import '@/background/types'
+import { getDefaultConfig, AppConfigMutable } from '@/app-config'
 import { timer } from '@/_helpers/promise-more'
-import * as configManagerMock from '@/_helpers/__mocks__/config-manager'
-import { openUrl as openUrlMock } from '@/_helpers/__mocks__/browser-api'
+import { of } from 'rxjs'
 import { browser } from '../../helper'
 
-window.appConfig = getDefaultConfig()
+let currentConfig: AppConfigMutable
 
-jest.mock('@/_helpers/config-manager')
 jest.mock('@/_helpers/browser-api')
+jest.mock('@/_helpers/config-manager', () => ({
+  createConfigStream: jest.fn(() => of(currentConfig || getDefaultConfig()))
+}))
+jest.mock('@/background/server', () => ({
+  BackgroundServer: {
+    getInstance: jest.fn(() => ({
+      searchPageSelection: jest.fn()
+    }))
+  }
+}))
+jest.mock('@/background/i18n-manager', () => ({
+  I18nManager: {
+    getInstance: jest.fn(async () => ({
+      i18n: {
+        t: jest.fn((key: string) => key)
+      },
+      getFixedT$: jest.fn(() => of((key: string) => key))
+    }))
+  }
+}))
+jest.mock('@/background/pdf-sniffer', () => ({
+  openPDF: jest.fn(),
+  extractPDFUrl: jest.fn((url?: string) => url)
+}))
+jest.mock('@/background/clipboard-manager', () => ({
+  copyTextToClipboard: jest.fn()
+}))
 
-let configManager: typeof configManagerMock
-let openUrl: typeof openUrlMock
+jest.mock('@/background/state', () => ({
+  getAppConfig: jest.fn(() => Promise.resolve(currentConfig)),
+  setAppConfig: jest.fn()
+}))
+
+let browserApi: typeof import('@/_helpers/browser-api')
+let openPDF: jest.Mock
 
 function specialConfig() {
   const config = getDefaultConfig() as AppConfigMutable
-  config.contextMenus.selected = ['youdao', 'dictcn']
+  config.contextMenus.selected = [
+    'youdao_page_translate',
+    'view_as_pdf',
+    'bing_dict'
+  ]
+  config.searchHistory = true
   return config
 }
 
-describe.skip('Context Menus', () => {
-  beforeAll(() => {
-    // Order matters. Do not change.
+async function loadContextMenus() {
+  const { ContextMenus } = require('@/background/context-menus')
+  return ContextMenus
+}
+
+describe('Context Menus', () => {
+  beforeEach(() => {
+    jest.resetModules()
+    browserApi = require('@/_helpers/browser-api')
+    ;({ openPDF } = require('@/background/pdf-sniffer'))
     browser.flush()
     browser.i18n.getUILanguage.returns('en')
-    jest.resetModules()
-    require('@/background/context-menus')
-    configManager = require('@/_helpers/config-manager')
-    openUrl = require('@/_helpers/browser-api').openUrl
-  })
-  afterAll(() => browser.flush())
-
-  describe('Context Menus Click', () => {
-    beforeEach(() => {
-      openUrl.mockClear()
-      browser.tabs.query.flush()
-      browser.runtime.getURL.callsFake(s => s)
-      browser.tabs.query
-        .onFirstCall()
-        .returns(Promise.resolve([{ url: 'test-url' }]))
-        .onSecondCall()
-        .returns(Promise.resolve([]))
-    })
-
-    it('init', () => {
-      expect(browser.contextMenus.onClicked.addListener.calledOnce).toBeTruthy()
-    })
-
-    it('google_page_translate', async () => {
-      browser.tabs.executeScript.flush()
-      browser.tabs.executeScript.callsFake(() => Promise.resolve())
-      browser.contextMenus.onClicked.dispatch({
-        menuItemId: 'google_page_translate'
-      })
-      expect(browser.tabs.executeScript.calledOnce).toBeTruthy()
-    })
-    it('youdao_page_translate', () => {
-      browser.tabs.executeScript.flush()
-      browser.tabs.executeScript.callsFake(() => Promise.resolve())
-      browser.contextMenus.onClicked.dispatch({
-        menuItemId: 'youdao_page_translate'
-      })
-      expect(
-        browser.tabs.executeScript.calledWith({ file: sinon.match('youdao') })
-      ).toBeTruthy()
-    })
-    it('view_as_pdf', async () => {
-      browser.tabs.query.onFirstCall().returns(Promise.resolve([]))
-      browser.contextMenus.onClicked.dispatch({ menuItemId: 'view_as_pdf' })
-      await timer(0)
-      expect(openUrl).toHaveBeenCalledTimes(1)
-    })
-    it('search_history', async () => {
-      browser.tabs.query.onFirstCall().returns(Promise.resolve([]))
-      browser.contextMenus.onClicked.dispatch({ menuItemId: 'search_history' })
-      await timer(0)
-      expect(openUrl).toHaveBeenCalledTimes(1)
-      expect(openUrl).toBeCalledWith(expect.stringContaining('history'))
-    })
-    it('notebook', async () => {
-      browser.tabs.query.onFirstCall().returns(Promise.resolve([]))
-      browser.contextMenus.onClicked.dispatch({ menuItemId: 'notebook' })
-      await timer(0)
-      expect(openUrl).toHaveBeenCalledTimes(1)
-      expect(openUrl).toBeCalledWith(expect.stringContaining('notebook'))
-    })
-    it('default', async () => {
-      browser.tabs.query.onFirstCall().returns(Promise.resolve([]))
-      browser.contextMenus.onClicked.dispatch({ menuItemId: 'bing_dict' })
-      await timer(0)
-      expect(openUrl).toHaveBeenCalledTimes(1)
-      expect(openUrl).toBeCalledWith(expect.stringContaining('bing'))
-    })
+    browser.runtime.getURL.callsFake((path: string) => path)
+    browser.contextMenus.create.callsFake((_props, cb) => cb && cb())
+    browser.contextMenus.removeAll.callsFake(() => Promise.resolve())
+    browser.tabs.query.callsFake(() =>
+      Promise.resolve([{ id: 1, url: 'https://example.com/page' }])
+    )
+    ;(chrome.scripting.executeScript as jest.Mock).mockReset()
+    ;(chrome.scripting.executeScript as jest.Mock).mockResolvedValue([1])
+    ;(openPDF as jest.Mock).mockReset()
+    browserApi.openUrl.mockClear()
+    currentConfig = getDefaultConfig() as AppConfigMutable
   })
 
-  describe('initListener', () => {
-    let config: AppConfig
+  it('registers click listeners once', async () => {
+    const ContextMenus = await loadContextMenus()
 
-    beforeEach(() => {
-      // Order matters. Do not change.
-      browser.flush()
-      browser.i18n.getUILanguage.returns('en')
-      config = specialConfig()
-      browser.contextMenus.removeAll.callsFake(() => Promise.resolve())
-      browser.contextMenus.create.callsFake((_, cb) => cb())
-      jest.resetModules()
-      configManager = require('@/_helpers/config-manager')
+    await ContextMenus.init()
+    await ContextMenus.init()
+
+    expect(browser.contextMenus.onClicked.addListener.calledOnce).toBeTruthy()
+  })
+
+  it('runs page-translate actions through chrome.scripting', async () => {
+    const ContextMenus = await loadContextMenus()
+    await ContextMenus.init()
+
+    browser.contextMenus.onClicked.dispatch({
+      menuItemId: 'google_page_translate'
     })
-
-    it('should set menus on init', done => {
-      const { init } = require('@/background/context-menus')
-      take(1)(init(config.contextMenus)).subscribe(() => {
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-        expect(
-          browser.contextMenus.create.calledWithMatch(
-            { id: 'youdao' },
-            sinon.match.func
-          )
-        ).toBeTruthy()
-        expect(
-          browser.contextMenus.create.calledWithMatch(
-            { id: 'dictcn' },
-            sinon.match.func
-          )
-        ).toBeTruthy()
-        done()
+    await timer(0)
+    expect(chrome.scripting.executeScript).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        target: { tabId: 1 },
+        files: ['assets/google-page-trans.js']
       })
+    )
+
+    browser.contextMenus.onClicked.dispatch({
+      menuItemId: 'youdao_page_translate'
     })
-
-    it('should not init setup when called multiple times', done => {
-      const { init } = require('@/background/context-menus')
-      take(1)(init(config.contextMenus)).subscribe(() => {
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-
-        const setMenus2$$ = init(config.contextMenus)
-        const setMenus3$$ = init(config.contextMenus)
-
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-        expect(setMenus2$$).toBe(setMenus3$$)
-
-        done()
+    await timer(0)
+    expect(chrome.scripting.executeScript).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        target: { tabId: 1 },
+        files: ['assets/fanyi.youdao.2.0/main.js']
       })
+    )
+  })
+
+  it('opens PDF viewer from the context menu', async () => {
+    const ContextMenus = await loadContextMenus()
+    await ContextMenus.init()
+
+    browser.contextMenus.onClicked.dispatch({
+      menuItemId: 'view_as_pdf',
+      linkUrl: 'https://example.com/test.pdf'
     })
+    await timer(0)
 
-    it("should do nothing when contex menus config didn't change", done => {
-      const newConfig = specialConfig()
-      newConfig.active = !newConfig.active
+    expect(openPDF).toHaveBeenCalledWith('https://example.com/test.pdf', true)
+  })
 
-      const { init } = require('@/background/context-menus')
-      take(1)(init(config.contextMenus)).subscribe(() => {
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-        configManager.dispatchConfigChangedEvent(newConfig, config)
-        setTimeout(() => {
-          expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-          done()
-        }, 0)
-      })
+  it('opens history and notebook pages from action menu items', async () => {
+    const ContextMenus = await loadContextMenus()
+    await ContextMenus.init()
+
+    browser.contextMenus.onClicked.dispatch({ menuItemId: 'search_history' })
+    await timer(0)
+    expect(browserApi.openUrl).toHaveBeenCalledWith('history.html')
+
+    browserApi.openUrl.mockClear()
+    browser.contextMenus.onClicked.dispatch({ menuItemId: 'notebook' })
+    await timer(0)
+    expect(browserApi.openUrl).toHaveBeenCalledWith('notebook.html')
+  })
+
+  it('opens configured selection providers with encoded text', async () => {
+    const ContextMenus = await loadContextMenus()
+    currentConfig = specialConfig()
+    await ContextMenus.init()
+
+    browser.contextMenus.onClicked.dispatch({
+      menuItemId: 'bing_dict',
+      selectionText: 'hello world'
     })
+    await timer(0)
 
-    it('should set menus at first time change', done => {
-      const newConfig = specialConfig()
-      newConfig.contextMenus.selected.pop()
+    expect(browserApi.openUrl).toHaveBeenCalledWith(
+      expect.stringContaining('hello%20world')
+    )
+  })
 
-      const { init } = require('@/background/context-menus')
-      take(1)(init(config.contextMenus)).subscribe(() => {
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-        configManager.dispatchConfigChangedEvent(newConfig)
-        setTimeout(() => {
-          expect(browser.contextMenus.removeAll.calledTwice).toBeTruthy()
-          done()
-        }, 0)
-      })
-    })
+  it('creates MV3 action menus from the current config', async () => {
+    const ContextMenus = await loadContextMenus()
+    const instance = await ContextMenus.init()
 
-    it('should set menus when contex menus config changed', done => {
-      const newConfig = specialConfig()
-      newConfig.contextMenus.selected.pop()
+    browser.contextMenus.create.resetHistory()
+    browser.contextMenus.removeAll.resetHistory()
 
-      const { init } = require('@/background/context-menus')
-      take(1)(init(config.contextMenus)).subscribe(() => {
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
-        configManager.dispatchConfigChangedEvent(newConfig, config)
-        setTimeout(() => {
-          expect(browser.contextMenus.removeAll.calledTwice).toBeTruthy()
-          done()
-        }, 0)
-      })
-    })
+    const config = specialConfig()
+    await instance['setContextMenus']([config, ((key: string) => key) as any])
 
-    it('should only set twice if source emits values during the first setting', done => {
-      const { init } = require('@/background/context-menus')
-      take(1)(init(config.contextMenus)).subscribe(() => {
-        expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
+    expect(browser.contextMenus.removeAll.calledOnce).toBeTruthy()
+    const createdMenus = browser.contextMenus.create.args.map(([props]) => props)
 
-        const newConfig1 = specialConfig()
-        newConfig1.contextMenus.selected = ['bing_dict']
-
-        const newConfig2 = specialConfig()
-        newConfig2.contextMenus.selected = ['iciba']
-
-        const newConfig3 = specialConfig()
-        newConfig3.contextMenus.selected = ['oxford']
-
-        const newConfig4 = specialConfig()
-        newConfig4.contextMenus.selected = ['youdao']
-
-        configManager.dispatchConfigChangedEvent(newConfig1, config)
-        configManager.dispatchConfigChangedEvent(newConfig2, newConfig1)
-        configManager.dispatchConfigChangedEvent(newConfig3, newConfig2)
-        configManager.dispatchConfigChangedEvent(newConfig4, newConfig3)
-
-        setTimeout(() => {
-          expect(browser.contextMenus.removeAll.calledThrice).toBeTruthy()
-          expect(
-            browser.contextMenus.create.calledWithMatch(
-              { id: 'bing_dict' },
-              sinon.match.func
-            )
-          ).toBeTruthy()
-          expect(
-            browser.contextMenus.create.calledWithMatch(
-              { id: 'iciba' },
-              sinon.match.func
-            )
-          ).toBeFalsy()
-          expect(
-            browser.contextMenus.create.calledWithMatch(
-              { id: 'oxford' },
-              sinon.match.func
-            )
-          ).toBeFalsy()
-          expect(
-            browser.contextMenus.create.calledWithMatch(
-              { id: 'youdao' },
-              sinon.match.func
-            )
-          ).toBeTruthy()
-          done()
-        }, 0)
-      })
-    })
+    expect(createdMenus).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'saladict_container' }),
+        expect.objectContaining({
+          id: 'bing_dict',
+          parentId: 'saladict_container'
+        }),
+        expect.objectContaining({
+          id: 'youdao_page_translate_ba',
+          contexts: ['action']
+        }),
+        expect.objectContaining({
+          id: 'view_as_pdf_ba',
+          contexts: ['action']
+        }),
+        expect.objectContaining({
+          id: 'search_history',
+          contexts: ['action']
+        }),
+        expect.objectContaining({
+          id: 'notebook',
+          contexts: ['action']
+        })
+      ])
+    )
   })
 })

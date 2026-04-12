@@ -111,6 +111,7 @@ export const SearchBox: FC<SearchBoxProps> = props => {
         <input
           type="text"
           className="menuBar-SearchBox"
+          data-testid="lookup-search-input"
           key="search-box"
           ref={inputRef}
           onChange={e => {
@@ -168,7 +169,11 @@ export const SearchBox: FC<SearchBoxProps> = props => {
           )}
         </CSSTransition>
       </div>
-      <SearchBtn t={props.t} onClick={searchText} />
+      <SearchBtn
+        t={props.t}
+        onClick={searchText}
+        data-testid="lookup-search-button"
+      />
     </>
   )
 }

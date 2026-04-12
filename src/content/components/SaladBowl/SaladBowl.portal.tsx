@@ -2,6 +2,7 @@ import React, { FC, useState } from 'react'
 import { useRefFn } from 'observable-hooks'
 import ShadowPortal from '@/components/ShadowPortal'
 import { SaladBowl, SaladBowlProps } from './SaladBowl'
+import saladBowlStyles from './SaladBowl.shadow.scss?inline'
 
 const animationTimeout = { enter: 1000, exit: 100, appear: 1000 }
 
@@ -19,7 +20,7 @@ export const SaladBowlPortal: FC<SaladBowlPortalProps> = props => {
   const { show, panelCSS, withAnimation, ...restProps } = props
   const [isHover, setHover] = useState(false)
   const bowlStyles = useRefFn(() => (
-    <style>{require('./SaladBowl.shadow.scss').toString()}</style>
+    <style>{saladBowlStyles}</style>
   )).current
 
   return (

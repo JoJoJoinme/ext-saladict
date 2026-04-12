@@ -13,8 +13,10 @@ import { message } from '@/_helpers/browser-api'
 import { Word, newWord } from '@/_helpers/record-manager'
 import { timer } from '@/_helpers/promise-more'
 import { MessageResponse } from '@/typings/message'
+import { Message } from '@/typings/message'
 import { StoreDispatch, StoreState } from './modules'
 import { isTagName } from '@/_helpers/dom'
+import { SALADICT_SELF_MESSAGE_EVENT } from '@/selection/message'
 
 export const init = (dispatch: StoreDispatch, getState: () => StoreState) => {
   window.addEventListener('resize', () => {
@@ -169,6 +171,15 @@ export const init = (dispatch: StoreDispatch, getState: () => StoreState) => {
   let lastInstantDate = 0
 
   message.self.addListener(msg => {
+    return handleSelfMessage(msg)
+  })
+
+  window.addEventListener(SALADICT_SELF_MESSAGE_EVENT, event => {
+    const customEvent = event as CustomEvent<Message>
+    void handleSelfMessage(customEvent.detail)
+  })
+
+  function handleSelfMessage(msg: Message) {
     switch (msg.type) {
       case 'SELECTION':
         if (msg.payload.instant) {
@@ -219,7 +230,7 @@ export const init = (dispatch: StoreDispatch, getState: () => StoreState) => {
       case 'LAST_PLAY_AUDIO':
         return Promise.resolve(getState().lastPlayAudio)
     }
-  })
+  }
 
   if (isPopupPage()) {
     initPopup(dispatch, getState())

@@ -4,6 +4,8 @@
 import pako from 'pako'
 import {
   getDefaultProfile,
+  getPresetProfile,
+  migratePresetProfile,
   Profile,
   genProfilesStorage,
   ProfileIDList,
@@ -90,9 +92,14 @@ export async function initProfiles(): Promise<Profile> {
 
   if (profileIDList.length > 0) {
     // quota bytes limit
-    for (const { id } of profileIDList) {
+    for (const { id, name } of profileIDList) {
       const profile = await getProfile(id)
-      profiles.push(profile ? mergeProfile(profile) : getDefaultProfile(id))
+      const baseProfile = getPresetProfile(name, id)
+      profiles.push(
+        profile
+          ? mergeProfile(profile, baseProfile || undefined)
+          : baseProfile || getDefaultProfile(id)
+      )
     }
   } else {
     ;({ profileIDList, profiles } = genProfilesStorage())
@@ -138,7 +145,17 @@ export async function resetAllProfiles() {
 }
 
 export async function getProfile(id: string): Promise<Profile | undefined> {
-  return inflate((await storage.sync.get(id))[id])
+  const profile = inflate((await storage.sync.get(id))[id])
+  if (!profile) {
+    return undefined
+  }
+
+  const profileIDList = await getProfileIDList()
+  const profileMeta = profileIDList.find(item => item.id === id)
+  const baseProfile = profileMeta ? getPresetProfile(profileMeta.name, id) : undefined
+  const merged = mergeProfile(profile, baseProfile || undefined)
+
+  return profileMeta ? migratePresetProfile(profileMeta.name, merged) : merged
 }
 
 /**

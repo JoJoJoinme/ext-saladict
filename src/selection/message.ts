@@ -1,11 +1,20 @@
 import { Message } from '@/typings/message'
-import { message } from '@/_helpers/browser-api'
 
 interface PostMessageEvent extends MessageEvent {
   data: {
     type: 'SALADICT_SELECTION'
     payload: Message<'SELECTION'>['payload']
   }
+}
+
+export const SALADICT_SELF_MESSAGE_EVENT = 'saladict:self-message'
+
+export function sendSelfPageMessage<T extends Message['type']>(message: Message<T>) {
+  window.dispatchEvent(
+    new CustomEvent(SALADICT_SELF_MESSAGE_EVENT, {
+      detail: message
+    })
+  )
 }
 
 export function postMessageHandler({ data, source }: PostMessageEvent) {
@@ -42,7 +51,7 @@ export function sendMessage(payload: Message<'SELECTION'>['payload']) {
       console.log('New selection', payload)
     }
 
-    message.self.send({
+    sendSelfPageMessage({
       type: 'SELECTION',
       payload
     })
@@ -84,5 +93,5 @@ export function sendEmptyMessage(isDictPanel: boolean) {
     console.log('New selection', msg.payload)
   }
 
-  return message.self.send(msg)
+  sendSelfPageMessage(msg)
 }

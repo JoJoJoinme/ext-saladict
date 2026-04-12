@@ -112,11 +112,11 @@ export class Service extends SyncService<SyncConfig, SyncMeta> {
   async checkDir(): Promise<boolean> {
     let text = ''
     try {
-      const response = await fetch(this.config.url, {
+      const response = await globalThis.fetch(this.config.url, {
         method: 'PROPFIND',
         headers: {
           Authorization:
-            'Basic ' + window.btoa(`${this.config.user}:${this.config.passwd}`),
+            'Basic ' + globalThis.btoa(`${this.config.user}:${this.config.passwd}`),
           'Content-Type': 'application/xml; charset="utf-8"',
           Depth: '1'
         }
@@ -132,25 +132,22 @@ export class Service extends SyncService<SyncConfig, SyncMeta> {
       throw new Error('network')
     }
 
-    let doc: Document | undefined
-    try {
-      if (text) {
-        doc = new DOMParser().parseFromString(text, 'text/xml')
-      }
-    } catch (e) {
+    if (!text) {
       throw new Error('parse')
     }
 
-    if (!doc) {
+    // Parse WebDAV PROPFIND XML without DOMParser (unavailable in Service Worker).
+    // Extract <D:response> (or <response>) blocks and check for Saladict directory.
+    const responseBlocks = text.match(/<(?:[a-zA-Z]+:)?response\b[\s\S]*?<\/(?:[a-zA-Z]+:)?response>/gi)
+    if (!responseBlocks) {
       throw new Error('parse')
     }
 
-    const $responses = Array.from(doc.querySelectorAll('response'))
-    for (const i in $responses) {
-      const href = $responses[i].querySelector('href')
-      if (href && href.textContent && href.textContent.endsWith('/Saladict/')) {
-        // is Saladict
-        if ($responses[i].querySelector('resourcetype collection')) {
+    for (const block of responseBlocks) {
+      const hrefMatch = block.match(/<(?:[a-zA-Z]+:)?href\b[^>]*>([\s\S]*?)<\/(?:[a-zA-Z]+:)?href>/i)
+      if (hrefMatch && hrefMatch[1] && hrefMatch[1].trim().endsWith('/Saladict/')) {
+        // is Saladict — check if it's a collection (directory)
+        if (/<(?:[a-zA-Z]+:)?collection\b/i.test(block)) {
           // is collection
           return true
         } else {
@@ -170,11 +167,11 @@ export class Service extends SyncService<SyncConfig, SyncMeta> {
 
     if (!dir) {
       // create directory
-      const response = await fetch(this.config.url + 'Saladict', {
+      const response = await globalThis.fetch(this.config.url + 'Saladict', {
         method: 'MKCOL',
         headers: {
           Authorization:
-            'Basic ' + window.btoa(`${this.config.user}:${this.config.passwd}`)
+            'Basic ' + globalThis.btoa(`${this.config.user}:${this.config.passwd}`)
         }
       })
       if (!response.ok) {
@@ -225,14 +222,18 @@ export class Service extends SyncService<SyncConfig, SyncMeta> {
     }
 
     try {
-      const response = await fetch(this.config.url + 'Saladict/notebook.json', {
+      const response = await globalThis.fetch(
+        this.config.url + 'Saladict/notebook.json',
+        {
         method: 'PUT',
         headers: {
           Authorization:
-            'Basic ' + window.btoa(`${this.config.user}:${this.config.passwd}`)
+            'Basic ' +
+            globalThis.btoa(`${this.config.user}:${this.config.passwd}`)
         },
         body
-      })
+        }
+      )
       if (!response.ok) {
         throw new Error('network')
       }
@@ -262,7 +263,7 @@ export class Service extends SyncService<SyncConfig, SyncMeta> {
     }
 
     const headers: { [name: string]: string } = {
-      Authorization: 'Basic ' + window.btoa(`${config.user}:${config.passwd}`)
+      Authorization: 'Basic ' + globalThis.btoa(`${config.user}:${config.passwd}`)
     }
     if (!testConfig && !noCache && this.meta.etag != null) {
       headers['If-None-Match'] = this.meta.etag
@@ -270,7 +271,7 @@ export class Service extends SyncService<SyncConfig, SyncMeta> {
     }
 
     try {
-      var response = await fetch(
+      var response = await globalThis.fetch(
         config.url +
           (config.url.endsWith('/') ? '' : '/') +
           'Saladict/notebook.json',

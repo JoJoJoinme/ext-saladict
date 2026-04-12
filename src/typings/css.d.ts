@@ -13,3 +13,8 @@ declare module 'csstype' {
     '--color-divider'?: string
   }
 }
+
+declare module '*.css?url' {
+  const href: string
+  export default href
+}

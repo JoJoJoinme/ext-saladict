@@ -4,7 +4,8 @@ import {
   Profile,
   getDefaultProfileID
 } from '@/app-config/profiles'
-import sinon from 'sinon'
+// Use sinon-chrome's bundled sinon (CJS) to avoid ESM import issues with sinon v21
+const sinon = require('sinon-chrome/node_modules/sinon')
 import { timer } from '@/_helpers/promise-more'
 import { pick } from 'lodash'
 import { browser } from '../../helper'
@@ -41,6 +42,111 @@ describe('Profile Manager', () => {
         })
       )
     ).toBeTruthy()
+  })
+
+  it('should route default multiword lookups to bing plus machine translators', () => {
+    const profile = getDefaultProfile()
+
+    expect(profile.dicts.selected).toContain('google')
+    expect(profile.dicts.selected).toContain('bing')
+    expect(profile.dicts.selected).toContain('youdao')
+    expect(profile.dicts.selected).toContain('zdic')
+    expect(profile.dicts.selected).not.toContain('cobuild')
+    expect(profile.dicts.selected).not.toContain('urban')
+    expect(profile.dicts.selected).not.toContain('caiyun')
+    expect(profile.dicts.selected).not.toContain('youdaotrans')
+    expect(profile.dicts.selected).not.toContain('googledict')
+    expect(profile.dicts.all.bing.selectionWC.max).toBe(999999999999999)
+    expect(profile.dicts.all.google.selectionWC.min).toBe(2)
+    expect(profile.dicts.all.caiyun.selectionWC.min).toBe(2)
+    expect(profile.dicts.all.youdaotrans.selectionWC.min).toBe(2)
+    expect(profile.dicts.all.cambridge.selectionWC.max).toBe(1)
+    expect(profile.dicts.all.youdao.selectionWC.max).toBe(1)
+  })
+
+  it('should keep translation profile available for single-word translation', () => {
+    const profile = require('@/app-config/profiles').translation().profile
+
+    expect(profile.dicts.all.google.selectionWC.min).toBe(1)
+    expect(profile.dicts.all.tencent.selectionWC.min).toBe(1)
+    expect(profile.dicts.all.baidu.selectionWC.min).toBe(1)
+    expect(profile.dicts.all.caiyun.selectionWC.min).toBe(1)
+    expect(profile.dicts.all.youdaotrans.selectionWC.min).toBe(1)
+  })
+
+  it('should widen sentence mode for longer selections', () => {
+    const profile = require('@/app-config/profiles').sentence().profile
+
+    expect(profile.dicts.all.jukuu.selectionWC.max).toBe(999999999999999)
+    expect(profile.dicts.all.bing.selectionWC.max).toBe(999999999999999)
+    expect(profile.dicts.all.cnki.selectionWC.max).toBe(999999999999999)
+  })
+
+  it('should migrate legacy default profile routing thresholds', async () => {
+    const id = getDefaultProfileID()
+    const profile = getDefaultProfile(id.id) as any
+    profile.dicts.selected = [
+      'bing',
+      'cobuild',
+      'cambridge',
+      'youdao',
+      'urban',
+      'vocabulary',
+      'google',
+      'caiyun',
+      'youdaotrans',
+      'zdic',
+      'guoyu',
+      'liangan',
+      'googledict'
+    ]
+    profile.dicts.all.bing.selectionWC.max = 5
+    profile.dicts.all.google.selectionWC.min = 5
+    profile.dicts.all.caiyun.selectionWC.min = 1
+    profile.dicts.all.youdaotrans.selectionWC.min = 1
+    profile.dicts.all.youdao.selectionWC.max = 999999999999999
+
+    fakeStorageGet({
+      profileIDList: [id],
+      activeProfileID: id.id,
+      [id.id]: profileManager.deflate(profile)
+    })
+
+    const migrated = await profileManager.getProfile(id.id)
+
+    expect(migrated?.dicts.all.bing.selectionWC.max).toBe(999999999999999)
+    expect(migrated?.dicts.all.google.selectionWC.min).toBe(2)
+    expect(migrated?.dicts.all.caiyun.selectionWC.min).toBe(2)
+    expect(migrated?.dicts.all.youdaotrans.selectionWC.min).toBe(2)
+    expect(migrated?.dicts.all.youdao.selectionWC.max).toBe(1)
+    expect(migrated?.dicts.selected).toEqual([
+      'bing',
+      'cambridge',
+      'youdao',
+      'vocabulary',
+      'google',
+      'zdic',
+      'guoyu',
+      'liangan'
+    ])
+  })
+
+  it('should migrate legacy translation profile google threshold', async () => {
+    const preset = require('@/app-config/profiles')
+    const id = getDefaultProfileID()
+    id.name = '%%_translation_%%'
+    const profile = preset.translation().profile as any
+    profile.id = id.id
+    profile.dicts.all.google.selectionWC.min = 5
+
+    fakeStorageGet({
+      profileIDList: [id],
+      activeProfileID: id.id,
+      [id.id]: profileManager.deflate(profile)
+    })
+
+    const migrated = await profileManager.getProfile(id.id)
+    expect(migrated?.dicts.all.google.selectionWC.min).toBe(1)
   })
 
   it('should keep existing profiles when init', async () => {

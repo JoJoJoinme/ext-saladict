@@ -34,7 +34,7 @@ export type StorageListenerCb<T = any, K extends string = string> = (
 type onMessageEvent<T extends Message = Message> = (
   message: T & { __pageId__?: string },
   sender: browser.runtime.MessageSender
-) => Promise<any> | boolean | void
+) => Promise<any> | boolean | void | any
 
 /* --------------------------------------- *\
  * #Globals
@@ -42,6 +42,56 @@ type onMessageEvent<T extends Message = Message> = (
 
 const noop = () => {
   /* do nothing */
+}
+
+function hasWindowContext(): boolean {
+  return typeof window !== 'undefined'
+}
+
+function getCurrentPageId() {
+  return hasWindowContext()
+    ? window.pageId
+    : (globalThis as any).pageId
+}
+
+function getRuntimeOnMessage() {
+  return (
+    (globalThis as any).chrome?.runtime?.onMessage || browser.runtime.onMessage
+  )
+}
+
+function getClientPageInfo() {
+  const $root = globalThis.document?.documentElement
+  const currentUrl = globalThis.location?.href || globalThis.document?.URL || ''
+  const currentTitle = globalThis.document?.title || ''
+
+  let pageId = globalThis.window?.pageId
+  if (pageId === undefined) {
+    if ($root?.dataset.saladictPageId) {
+      pageId = $root.dataset.saladictPageId
+    } else {
+      pageId =
+        currentUrl || `saladict-page:${Date.now()}:${Math.random().toString(36).slice(2)}`
+      if ($root) {
+        $root.dataset.saladictPageId = String(pageId)
+      }
+    }
+  }
+
+  let faviconURL = globalThis.window?.faviconURL || ''
+  if (!faviconURL) {
+    const icon = globalThis.document?.querySelector<HTMLLinkElement>(
+      'link[rel~="icon"], link[rel="shortcut icon"]'
+    )
+    faviconURL = icon?.href || ''
+  }
+
+  return {
+    pageId,
+    faviconURL,
+    pageTitle: globalThis.window?.pageTitle || currentTitle,
+    pageURL: globalThis.window?.pageURL || currentUrl
+  }
 }
 
 /**
@@ -364,13 +414,13 @@ async function messageSendSelf<T extends MsgType, R = undefined>(
     callContext = new Error('Message Call Context')
   }
 
-  if (window.pageId === undefined) {
+  if (hasWindowContext() && window.pageId === undefined) {
     await initClient()
   }
   return browser.runtime
     .sendMessage(
       Object.assign({}, message, {
-        __pageId__: window.pageId,
+        __pageId__: getCurrentPageId(),
         type: `[[${message.type}]]`
       })
     )
@@ -392,7 +442,7 @@ function messageAddListener<T extends MsgType>(
   this: MessageThis,
   ...args: [T, onMessageEvent<Message<T>>] | [onMessageEvent<Message>]
 ): void {
-  if (window.pageId === undefined) {
+  if (hasWindowContext() && window.pageId === undefined) {
     initClient()
   }
   const allListeners = this.__self__ ? messageSelfListeners : messageListeners
@@ -405,22 +455,38 @@ function messageAddListener<T extends MsgType>(
   }
   let listener = listeners.get(messageType || '__DEFAULT_MSGTYPE__')
   if (!listener) {
-    listener = ((message, sender) => {
+    listener = ((message, sender, sendResponse) => {
+      const currentPageId = getCurrentPageId()
       if (
         message &&
         (this.__self__
-          ? window.pageId === message.__pageId__
+          ? currentPageId === message.__pageId__
           : !message.__pageId__)
       ) {
         if (messageType == null || message.type === messageType) {
-          return cb(message as Message<T> & { __pageId__?: string }, sender)
+          const result = cb(
+            message as Message<T> & { __pageId__?: string },
+            sender
+          )
+
+          if (result && typeof result.then === 'function') {
+            Promise.resolve(result)
+              .then(sendResponse)
+              .catch(() => sendResponse())
+            return true
+          }
+
+          if (result !== undefined) {
+            sendResponse(result)
+            return true
+          }
         }
       }
     }) as onMessageEvent
     listeners.set(messageType || '__DEFAULT_MSGTYPE__', listener)
   }
   // object is handled
-  return browser.runtime.onMessage.addListener(listener as any)
+  return getRuntimeOnMessage().addListener(listener as any)
 }
 
 function messageRemoveListener(
@@ -441,7 +507,7 @@ function messageRemoveListener(
       const listener = listeners.get(messageType)
       if (listener) {
         // @ts-ignore
-        browser.runtime.onMessage.removeListener(listener)
+        getRuntimeOnMessage().removeListener(listener)
         listeners.delete(messageType)
         if (listeners.size <= 0) {
           allListeners.delete(cb)
@@ -452,14 +518,14 @@ function messageRemoveListener(
       // delete all cb related callbacks
       listeners.forEach(listener =>
         // @ts-ignore
-        browser.runtime.onMessage.removeListener(listener)
+        getRuntimeOnMessage().removeListener(listener)
       )
       allListeners.delete(cb)
       return
     }
   }
   // @ts-ignore
-  browser.runtime.onMessage.removeListener(cb)
+  getRuntimeOnMessage().removeListener(cb)
 }
 
 function messageCreateStream<T extends MsgType>(
@@ -488,19 +554,16 @@ function messageCreateStream<T extends MsgType>(
  */
 function initClient(): Promise<typeof window.pageId> {
   if (window.pageId === undefined) {
-    return message
-      .send<'PAGE_INFO'>({ type: 'PAGE_INFO' })
-      .then(({ pageId, faviconURL, pageTitle, pageURL }) => {
-        window.pageId = pageId
-        window.faviconURL = faviconURL
-        if (pageTitle) {
-          window.pageTitle = pageTitle
-        }
-        if (pageURL) {
-          window.pageURL = pageURL
-        }
-        return pageId
-      })
+    const { pageId, faviconURL, pageTitle, pageURL } = getClientPageInfo()
+    window.pageId = pageId
+    window.faviconURL = faviconURL
+    if (pageTitle) {
+      window.pageTitle = pageTitle
+    }
+    if (pageURL) {
+      window.pageURL = pageURL
+    }
+    return Promise.resolve(pageId)
   } else {
     return Promise.resolve(window.pageId)
   }
@@ -511,28 +574,36 @@ function initClient(): Promise<typeof window.pageId> {
  * This method should be invoked in background script
  */
 function initServer(): void {
-  window.pageId = 'background page'
+  ;(globalThis as any).pageId = 'background page'
   const selfMsgTester = /^\[\[(.+)\]\]$/
 
-  browser.runtime.onMessage.addListener(
-    (message: object, sender: browser.runtime.MessageSender) => {
+  getRuntimeOnMessage().addListener(
+    (
+      message: object,
+      sender: browser.runtime.MessageSender,
+      sendResponse: (response?: any) => void
+    ) => {
       if (!message || !message['type']) {
         return
       }
 
       if ((message as Message).type === 'PAGE_INFO') {
-        return Promise.resolve(_getPageInfo(sender))
+        sendResponse(_getPageInfo(sender))
+        return true
       }
 
       const selfMsg = selfMsgTester.exec((message as Message).type)
       if (selfMsg) {
         ;(message as Mutable<Message>).type = selfMsg[1] as MsgType
         const tabId = sender.tab && sender.tab.id
-        if (tabId) {
-          return messageSend(tabId, message as Message)
-        } else {
-          return messageSend(message as Message)
-        }
+        Promise.resolve(
+          tabId
+            ? messageSend(tabId, message as Message)
+            : messageSend(message as Message)
+        )
+          .then(sendResponse)
+          .catch(() => sendResponse())
+        return true
       }
     }
   )

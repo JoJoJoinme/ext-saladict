@@ -1,4 +1,5 @@
 import { openUrl } from '@/_helpers/browser-api'
+import { requestOffscreen } from './offscreen-helper'
 
 export async function copyTextToClipboard(text: string): Promise<void> {
   if (
@@ -11,13 +12,7 @@ export async function copyTextToClipboard(text: string): Promise<void> {
     return
   }
 
-  const copyFrom = document.createElement('textarea')
-  copyFrom.textContent = text
-  document.body.appendChild(copyFrom)
-  copyFrom.select()
-  document.execCommand('copy')
-  copyFrom.blur()
-  document.body.removeChild(copyFrom)
+  await requestOffscreen('COPY_TEXT', text)
 }
 
 export async function getTextFromClipboard(): Promise<string> {
@@ -33,18 +28,7 @@ export async function getTextFromClipboard(): Promise<string> {
 
   if (process.env.NODE_ENV === 'development') {
     return 'clipboard content'
-  } else {
-    let el = document.getElementById(
-      'saladict-paste'
-    ) as HTMLTextAreaElement | null
-    if (!el) {
-      el = document.createElement('textarea')
-      el.id = 'saladict-paste'
-      document.body.appendChild(el)
-    }
-    el.value = ''
-    el.focus()
-    document.execCommand('paste')
-    return el.value || ''
   }
+
+  return (await requestOffscreen('PASTE_TEXT', undefined)) || ''
 }

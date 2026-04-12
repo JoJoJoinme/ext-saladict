@@ -5,6 +5,16 @@ import { DictID } from '@/app-config'
 
 import './_style.scss'
 
+const faviconModules = import.meta.glob<{ default: string }>(
+  '@/components/dictionaries/*/favicon.png',
+  { eager: true }
+)
+const faviconMap: Record<string, string> = {}
+for (const [path, mod] of Object.entries(faviconModules)) {
+  const id = path.match(/dictionaries\/([^/]+)\/favicon\.png$/)?.[1]
+  if (id) faviconMap[id] = mod.default
+}
+
 export interface DictTitleProps {
   dictID: DictID
   /** Supported languages */
@@ -22,7 +32,7 @@ export const DictTitle: FC<DictTitleProps> = ({ dictID, dictLangs }) => {
       <span>
         <img
           className="saladict-dict-title-icon"
-          src={require('@/components/dictionaries/' + dictID + '/favicon.png')}
+          src={faviconMap[dictID] || ''}
           alt={`logo ${title}`}
         />
         <a

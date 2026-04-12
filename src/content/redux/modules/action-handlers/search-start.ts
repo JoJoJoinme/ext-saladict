@@ -55,7 +55,8 @@ export const searchStart: ActionHandler<
               ? {
                   id: d.id,
                   searchStatus: 'SEARCHING',
-                  searchResult: null
+                  searchResult: null,
+                  searchError: null
                 }
               : d
           )
@@ -83,7 +84,8 @@ export const searchStart: ActionHandler<
                     !state.userFoldedDicts[id])
                     ? 'SEARCHING'
                     : 'IDLE',
-                searchResult: null
+                searchResult: null,
+                searchError: null
               }
             })
   }

@@ -9,7 +9,10 @@ import {
   isOptionsPage,
   isPopupPage
 } from '@/_helpers/saladict'
-import { DictSearchResult } from '@/components/dictionaries/helpers'
+import {
+  DictSearchResult,
+  LookupErrorType
+} from '@/components/dictionaries/helpers'
 
 export const initState = async () => {
   const pConfig = getConfig()
@@ -92,6 +95,7 @@ export const initState = async () => {
       readonly id: DictID
       readonly searchStatus: 'IDLE' | 'SEARCHING' | 'FINISH'
       readonly searchResult: any
+      readonly searchError?: LookupErrorType | null
       readonly catalog?: DictSearchResult<DictID>['catalog']
     }[],
     /** User manually folded or unfolded */

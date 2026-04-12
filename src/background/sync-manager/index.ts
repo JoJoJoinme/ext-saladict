@@ -5,10 +5,13 @@ import { storage } from '@/_helpers/browser-api'
 import { Word } from '@/_helpers/record-manager'
 import { notifyError } from './helpers'
 
-const reqServices = require.context('./services', true, /index\.ts$/)
+const serviceModules = import.meta.glob<{ Service: SyncServiceConstructor }>(
+  './services/*/index.ts',
+  { eager: true }
+)
 
-const Services = reqServices.keys().reduce((map, path) => {
-  const Servicex = reqServices(path).Service
+const Services = Object.values(serviceModules).reduce((map, mod) => {
+  const Servicex = mod.Service
   return map.set(Servicex.id, Servicex)
 }, new Map<string, SyncServiceConstructor>())
 

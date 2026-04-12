@@ -43,6 +43,18 @@
   }
 }
 
+.dictItem-EmptyState {
+  margin: 10px 0;
+  color: var(--color-font-grey);
+  font-style: italic;
+}
+
+.dictItem-ErrorState {
+  margin: 10px 0;
+  color: #c0392b;
+  font-style: italic;
+}
+
 .dictItem-Loader {
   align-self: center;
   width: 120px;

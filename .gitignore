@@ -95,5 +95,13 @@ test/**/response
 
 .webext_tmp/*
 
+.wxt/
+dist/
+dev/.wxt/
+dev/.output/
+dev/agent/.runtime/
+src/entrypoints/.wxt/
+src/entrypoints/.output/
+test/acceptance/artifacts/
 
 **/.DS_Store

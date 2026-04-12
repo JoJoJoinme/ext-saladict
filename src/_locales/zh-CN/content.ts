@@ -1,5 +1,8 @@
 export const locale = {
   chooseLang: '-选择其它语言-',
+  noResult: '未找到结果',
+  lookupError: '查询失败，请稍后重试',
+  renderError: '渲染失败，请反馈问题',
   standalone: '沙拉查词-独立查词窗口',
   fetchLangList: '获取全部语言列表',
   transContext: '重新翻译',

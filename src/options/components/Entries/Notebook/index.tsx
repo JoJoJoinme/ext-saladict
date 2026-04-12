@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react'
+import React, { FC, useState, ComponentType } from 'react'
 import { Switch, Checkbox, Button } from 'antd'
 import { concat, from } from 'rxjs'
 import { pluck, map } from 'rxjs/operators'
@@ -13,14 +13,24 @@ import {
   SaladictFormItem
 } from '@/options/components/SaladictForm'
 
-const reqSyncService = require.context('./sync-services', false, /\.tsx$/)
+const syncServiceModules = import.meta.glob<{ default: ComponentType<any> }>(
+  './sync-services/*.tsx',
+  { eager: true }
+)
+const syncServiceMap: Record<string, ComponentType<any>> = {}
+const syncServiceIdList: string[] = []
+for (const [path, mod] of Object.entries(syncServiceModules)) {
+  const id = path.match(/sync-services\/([^/]+)\.tsx$/)?.[1]
+  if (id) {
+    syncServiceMap[id] = mod.default
+    syncServiceIdList.push(id)
+  }
+}
 
 export const Notebook: FC = () => {
   const { t } = useTranslate(['options', 'dicts', 'common', 'sync'])
   const ctxTrans = useSelector(state => state.config.ctxTrans)
-  const syncServiceIds = useRefFn(() =>
-    reqSyncService.keys().map(path => /([^/]+)\.tsx$/.exec(path)![1])
-  ).current
+  const syncServiceIds = useRefFn(() => syncServiceIdList).current
   const [showSyncServices, setShowSyncServices] = useState<{
     [id: string]: boolean
   }>({})
@@ -97,18 +107,21 @@ export const Notebook: FC = () => {
   return (
     <>
       <SaladictForm items={formItems} />
-      {syncServiceIds.map(id =>
-        React.createElement(reqSyncService(`./${id}.tsx`).default, {
-          key: id,
-          syncConfig: syncConfigs?.[id],
-          show: showSyncServices[id],
-          onClose: () =>
-            setShowSyncServices(showSyncServices => ({
-              ...showSyncServices,
-              [id]: false
-            }))
-        })
-      )}
+      {syncServiceIds.map(id => {
+        const SyncComp = syncServiceMap[id]
+        return SyncComp
+          ? React.createElement(SyncComp, {
+              key: id,
+              syncConfig: syncConfigs?.[id],
+              show: showSyncServices[id],
+              onClose: () =>
+                setShowSyncServices(showSyncServices => ({
+                  ...showSyncServices,
+                  [id]: false
+                }))
+            })
+          : null
+      })}
     </>
   )
 }

@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "regexSubstitution": "\\0"
+      }
+    },
+    "condition": {
+      "regexFilter": "^(ftp|file)://.*\\.pdf$",
+      "resourceTypes": ["main_frame", "sub_frame"]
+    }
+  }
+]

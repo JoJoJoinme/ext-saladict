@@ -22,20 +22,13 @@ export type ZdicResult = Array<{
 }>
 
 type ZdicSearchResult = DictSearchResult<ZdicResult>
-
-let isRefererModified = false
-
 export const search: SearchFunction<ZdicResult> = (
   text,
-  config,
+  _config,
   profile,
-  payload
+  _payload
 ) => {
   const isAudio = profile.dicts.all.zdic.options.audio
-  if (!isRefererModified && isAudio) {
-    isRefererModified = true
-    modifyReferer()
-  }
 
   return fetchDirtyDOM(
     'https://www.zdic.net/hans/' + encodeURIComponent(text.replace(/\s+/g, ' '))
@@ -82,41 +75,4 @@ function handleDOM(
   }
 
   return response.result.length > 0 ? response : handleNoResult()
-}
-
-function modifyReferer() {
-  const extraInfoSpec = ['blocking', 'requestHeaders']
-  // https://developer.chrome.com/extensions/webRequest#life_cycle_footnote
-  if (
-    browser.webRequest['OnBeforeSendHeadersOptions'] &&
-    Object.prototype.hasOwnProperty.call(
-      browser.webRequest['OnBeforeSendHeadersOptions'],
-      'EXTRA_HEADERS'
-    )
-  ) {
-    extraInfoSpec.push('extraHeaders')
-  }
-
-  browser.webRequest.onBeforeSendHeaders.addListener(
-    details => {
-      if (details && details.requestHeaders) {
-        for (var i = 0; i < details.requestHeaders.length; ++i) {
-          if (details.requestHeaders[i].name === 'Referer') {
-            details.requestHeaders[i].value = 'https://www.zdic.net'
-            break
-          }
-        }
-        if (i === details.requestHeaders.length) {
-          details.requestHeaders.push({
-            name: 'Referer',
-            value: 'https://www.zdic.net'
-          })
-        }
-      }
-      return { requestHeaders: details.requestHeaders }
-    },
-    { urls: ['https://img.zdic.net/audio/*'] },
-    /** WebExt type is missing Chrome support */
-    extraInfoSpec as any
-  )
 }
