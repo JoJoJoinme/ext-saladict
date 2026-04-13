@@ -17,7 +17,7 @@ See:
 - [Current architecture](./docs/architecture.md)
 - [MV3 migration status](./MV3_MIGRATION.md)
 - [User-intent acceptance tests](./docs/user-intent-acceptance.md)
-- [Release notes](./docs/releases/v7.20.1.md)
+- [Release notes](./docs/releases/v7.20.2.md)
 - [Contributing guide](./CONTRIBUTING.md)
 
 ## Install From Release
@@ -25,11 +25,12 @@ See:
 Download the packaged extension from:
 
 - [v7.20.1 release](https://github.com/JoJoJoinme/ext-saladict/releases/tag/v7.20.1)
-- [saladict-7.20.1-chrome.zip](https://github.com/JoJoJoinme/ext-saladict/releases/download/v7.20.1/saladict-7.20.1-chrome.zip)
+- [v7.20.2 release](https://github.com/JoJoJoinme/ext-saladict/releases/tag/v7.20.2)
+- [saladict-7.20.2-chrome.zip](https://github.com/JoJoJoinme/ext-saladict/releases/download/v7.20.2/saladict-7.20.2-chrome.zip)
 
 To load it manually in Chrome / Edge:
 
-1. unzip `saladict-7.20.1-chrome.zip`
+1. unzip `saladict-7.20.2-chrome.zip`
 2. open `chrome://extensions` or `edge://extensions`
 3. enable Developer mode
 4. click `Load unpacked`

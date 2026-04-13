@@ -1,6 +1,6 @@
 {
   "name": "saladict",
-  "version": "7.20.1",
+  "version": "7.20.2",
   "description": "Chrome extension; inline translator powered by multiple online dictionaries",
   "private": true,
   "type": "module",

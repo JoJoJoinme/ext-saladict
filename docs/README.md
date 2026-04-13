@@ -51,4 +51,5 @@ entry points for day-to-day work or release status:
 
 ## Release Notes
 
+- [v7.20.2](./releases/v7.20.2.md)
 - [v7.20.1](./releases/v7.20.1.md)
