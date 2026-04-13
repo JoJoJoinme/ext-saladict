@@ -20,6 +20,26 @@ See:
 - [Release notes](./docs/releases/v7.20.1.md)
 - [Contributing guide](./CONTRIBUTING.md)
 
+## Install From Release
+
+Download the packaged extension from:
+
+- [v7.20.1 release](https://github.com/JoJoJoinme/ext-saladict/releases/tag/v7.20.1)
+- [saladict-7.20.1-chrome.zip](https://github.com/JoJoJoinme/ext-saladict/releases/download/v7.20.1/saladict-7.20.1-chrome.zip)
+
+To load it manually in Chrome / Edge:
+
+1. unzip `saladict-7.20.1-chrome.zip`
+2. open `chrome://extensions` or `edge://extensions`
+3. enable Developer mode
+4. click `Load unpacked`
+5. select the unzipped extension directory
+
+Note:
+
+- GitHub releases provide a `zip` package for manual installation
+- `.crx` is not the primary distribution format for this branch
+
 ## Build From Source
 
 ```bash

@@ -11,10 +11,32 @@ Saladict 是一个基于 Chrome/Edge Manifest V3 的划词查词与翻译扩展�
 
 相关文档：
 
+- [文档入口](./docs/README.md)
 - [当前架构说明](./docs/architecture.md)
 - [MV3 迁移状态](./MV3_MIGRATION.md)
 - [用户意图验收测试](./docs/user-intent-acceptance.md)
+- [v7.20.1 发布说明](./docs/releases/v7.20.1.md)
 - [贡献指南](./CONTRIBUTING-zh.md)
+
+## 从 Release 安装
+
+下载地址：
+
+- [v7.20.1 release](https://github.com/JoJoJoinme/ext-saladict/releases/tag/v7.20.1)
+- [saladict-7.20.1-chrome.zip](https://github.com/JoJoJoinme/ext-saladict/releases/download/v7.20.1/saladict-7.20.1-chrome.zip)
+
+Chrome / Edge 手动安装方式：
+
+1. 解压 `saladict-7.20.1-chrome.zip`
+2. 打开 `chrome://extensions` 或 `edge://extensions`
+3. 开启开发者模式
+4. 点击“加载已解压的扩展程序”
+5. 选择解压后的扩展目录
+
+说明：
+
+- 当前 GitHub release 主要提供 `zip` 包供手动安装
+- 这个分支不把 `.crx` 作为主要发布格式
 
 ## 从源码构建
 
